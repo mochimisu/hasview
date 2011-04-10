@@ -1,4 +1,19 @@
 #[bmw] some testing
+"""
+current status:
+    creates pyqt window
+    adds toolbar
+    keyboard shortcut to quit
+    mouse bindings to move box around
+    dialog box popup
+
+todo:
+    create class for boxes (and unify dialog, text output, frame, etc)
+    make box class movable
+    wires
+    and the rest of the project
+
+"""
 
 import sys
 from PyQt4 import QtGui, QtCore
@@ -9,7 +24,7 @@ class MainBox(QtGui.QMainWindow):
 
         self.resize(500, 500) #[bmw] window size
         self.setWindowTitle('PyQt Testing!') #[bmw] window title
-        
+
         self.boxArea = BoxArea() #[bmw] declare boxarea (defined below) - will contain the boxes to move around
         self.setCentralWidget(self.boxArea) #[bmw] set boxarea as central widget - central widgets take up the rest of the space (after some space is taken up by toolbar, etc)
 
@@ -34,26 +49,33 @@ class BoxArea(QtGui.QWidget): #[bmw] boxarea widget to contain our moving boxes 
 
         #[bmw] set initial vars
         self.clicked = False
-        
+
         self.button = QtGui.QPushButton('Edit', self) #[bmw] dialog button creation
         self.button.setFocusPolicy(QtCore.Qt.NoFocus) #[bmw] sets focus policy
         self.button.move(20, 20) #[bmw] initial pos
         self.connect(self.button, QtCore.SIGNAL('clicked()'), 
             self.showDialog) #[bmw] binds button to showDialog()
         self.setFocus() 
-        
+
         self.label = QtGui.QLineEdit(self) #[bmw] creates lineedit "output"
         self.label.move(120, 20) #[bmw] initial pos
-        
-        
+
+    def paintEvent(self, e): #[bmw] some lingering code to show how to draw a box outline
+        qp = QtGui.QPainter()
+        qp.begin(self)
+        qp.setPen(QtGui.QPen(QtCore.Qt.black, 1, QtCore.Qt.SolidLine))
+        qp.drawRect(10, 195, 90, 60)
+        qp.end()
+
+
     def mousePressEvent(self, event): #[bmw] mousepress listener: only handles clicks and not releases
         if event.button() == QtCore.Qt.LeftButton: #[bmw] only care about left button
             self.clicked = True #[bmw] so we know that we clicked
-            
+
     def mouseMoveEvent(self, event): #[bmw] handles mouse movement
         if (event.buttons() & QtCore.Qt.LeftButton) and self.clicked: #[bmw] only move when left butotn is clicked and click bool is on (redundant possibly?)
             self.moveThingTo(event.pos()) 
-            
+
     def mouseReleaseEvent(self, event): #[bmw] handles mouse click releases
         if event.button() == QtCore.Qt.LeftButton and self.clicked: #[bmw] same as mousemove
             self.moveThingTo(event.pos()) #[bmw] same as mousemove
@@ -62,7 +84,7 @@ class BoxArea(QtGui.QWidget): #[bmw] boxarea widget to contain our moving boxes 
     def moveThingTo(self, newPos): #[bmw] actual moving
         self.label.move(newPos)
         self.button.move(newPos - QtCore.QPoint(100,0)) #[bmw] offset (QPoint has arithmetic operators)
-    
+
     def showDialog(self): #[bmw] dialog box to edit input
         text, ok = QtGui.QInputDialog.getText(self, 'Input', 
             'Enter something:')
