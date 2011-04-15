@@ -73,7 +73,8 @@ class HasNode(QtGui.QFrame):
             self.move(self.pos()+event.pos()-self.clickedOffset)
         elif (event.buttons() & QtCore.Qt.LeftButton) and self.resizing:
             btmRtPt = event.pos() + self.clickedOffset;
-            self.resize(btmRtPt.x(),btmRtPt.y())
+            if(btmRtPt.x() > 10 and btmRtPt.y() > 10):
+                self.resize(btmRtPt.x(),btmRtPt.y())
 
     def mouseReleaseEvent(self, event): #[bmw] handles mouse click releases
         if event.button() == QtCore.Qt.LeftButton and self.resizing:
