@@ -5,11 +5,12 @@ current status:
     adds toolbar
     keyboard shortcut to quit
     mouse bindings to move box around
-    dialog box popup
+    dialog box popup (in commented code)
+    box class (separate from another)
+    movable boxes
 
 todo:
-    create class for boxes (and unify dialog, text output, frame, etc)
-    make box class movable
+    extend box object
     wires
     and the rest of the project
 
@@ -28,7 +29,12 @@ class MainBox(QtGui.QMainWindow):
         self.boxArea = BoxArea() #[bmw] declare boxarea (defined below) - will contain the boxes to move around
         self.setCentralWidget(self.boxArea) #[bmw] set boxarea as central widget - central widgets take up the rest of the space (after some space is taken up by toolbar, etc)
 
-        exit = QtGui.QAction(QtGui.QIcon('lambda.png'), 'Exit', self) #[bmw] set exit action, assign an image to it
+        addNode = QtGui.QAction(QtGui.QIcon('lambda.png'), 'Add Node', self)
+        addNode.setShortcut('Ctrl+Shift+N')
+        addNode.setStatusTip('Add a new node')
+        self.connect(addNode, QtCore.SIGNAL('triggered()'), self.boxArea.addNode)
+
+        exit = QtGui.QAction(QtGui.QIcon('x.png'), 'Exit', self) #[bmw] set exit action, assign an image to it
         exit.setShortcut('Ctrl+Q') #[bmw] set keyboard shortcut (cmd q on osx)
         exit.setStatusTip('Exit application') #tooltip
         self.connect(exit, QtCore.SIGNAL('triggered()'), QtCore.SLOT('close()')) #[bmw] binds exit's signal so that if it's triggered(), the application will close()
@@ -37,16 +43,65 @@ class MainBox(QtGui.QMainWindow):
 
         menubar = self.menuBar() #[bmw] grab menu bar pointer
         file = menubar.addMenu('&File') #[bmw] add a new menu
+        file.addAction(addNode)
         file.addAction(exit) #[bmw] add exit to that menu
 
-        toolbar = self.addToolBar('Exit') #[bmw] make a new toolbar
+        toolbar = self.addToolBar('Toolbar') #[bmw] make a new toolbar
+        toolbar.addAction(addNode) #[bmw] add exit to toolbar
         toolbar.addAction(exit) #[bmw] add exit to toolbar
+
+class HasNode(QtGui.QFrame):
+    def __init__(self, parent=None):
+        super(HasNode, self).__init__(parent)
+        self.frameRect = QtCore.QRect()
+        self.setFrameStyle(1)
+        self.moving = False
+        self.resizing = False
+        self.clickedOffset = QtCore.QPoint()
+        
+    def mousePressEvent(self, event): #[bmw] mousepress listener: only handles clicks and not releases
+        self.clickedOffset = event.pos()
+
+        if event.button() == QtCore.Qt.LeftButton and (self.clickedOffset.x() > self.width()-10) and (self.clickedOffset.y() > self.height()-10):
+            self.resizing = True
+            self.clickedOffset = QtCore.QPoint(self.width() - self.clickedOffset.x(), self.height() - self.clickedOffset.y())
+        elif event.button() == QtCore.Qt.LeftButton: #moving the box
+            self.moving = True #[bmw] so we know that we clicked
+        
+    def mouseMoveEvent(self, event): #[bmw] handles mouse movement
+        if (event.buttons() & QtCore.Qt.LeftButton) and self.moving: #[bmw] only move when left butotn is clicked and click bool is on (redundant possibly?)
+            self.move(self.pos()+event.pos()-self.clickedOffset)
+        elif (event.buttons() & QtCore.Qt.LeftButton) and self.resizing:
+            btmRtPt = event.pos() + self.clickedOffset;
+            self.resize(btmRtPt.x(),btmRtPt.y())
+
+    def mouseReleaseEvent(self, event): #[bmw] handles mouse click releases
+        if event.button() == QtCore.Qt.LeftButton and self.resizing:
+            self.mouseMoveEvent(event)
+            self.resizing = False #[bmw] so we know to not move anymore
+        if event.button() == QtCore.Qt.LeftButton and self.moving: 
+            self.mouseMoveEvent(event)
+            self.moving = False #[bmw] so we know to not move anymore
 
 
 class BoxArea(QtGui.QWidget): #[bmw] boxarea widget to contain our moving boxes and stuff
     def __init__(self, parent=None):
         super(BoxArea, self).__init__(parent)
 
+        self.frames = []
+        
+        #self.frame = HasNode(self)
+        #self.frame.show()
+
+    def addExistingNode(self, node):
+        self.frames.append(node)
+    def addNode(self):
+        newNode = HasNode(self)
+        self.addExistingNode(newNode)
+        newNode.show()
+
+
+"""
         #[bmw] set initial vars
         self.clicked = False
 
@@ -59,14 +114,10 @@ class BoxArea(QtGui.QWidget): #[bmw] boxarea widget to contain our moving boxes 
 
         self.label = QtGui.QLineEdit(self) #[bmw] creates lineedit "output"
         self.label.move(120, 20) #[bmw] initial pos
+        """
 
-    def paintEvent(self, e): #[bmw] some lingering code to show how to draw a box outline
-        qp = QtGui.QPainter()
-        qp.begin(self)
-        qp.setPen(QtGui.QPen(QtCore.Qt.black, 1, QtCore.Qt.SolidLine))
-        qp.drawRect(10, 195, 90, 60)
-        qp.end()
-
+        
+"""
 
     def mousePressEvent(self, event): #[bmw] mousepress listener: only handles clicks and not releases
         if event.button() == QtCore.Qt.LeftButton: #[bmw] only care about left button
@@ -82,8 +133,9 @@ class BoxArea(QtGui.QWidget): #[bmw] boxarea widget to contain our moving boxes 
             self.clicked = False #[bmw] so we know to not move anymore
 
     def moveThingTo(self, newPos): #[bmw] actual moving
-        self.label.move(newPos)
-        self.button.move(newPos - QtCore.QPoint(100,0)) #[bmw] offset (QPoint has arithmetic operators)
+        self.frame.move(newPos)
+        #self.label.move(newPos)
+        #self.button.move(newPos - QtCore.QPoint(100,0)) #[bmw] offset (QPoint has arithmetic operators)
 
     def showDialog(self): #[bmw] dialog box to edit input
         text, ok = QtGui.QInputDialog.getText(self, 'Input', 
@@ -91,6 +143,7 @@ class BoxArea(QtGui.QWidget): #[bmw] boxarea widget to contain our moving boxes 
 
         if ok:
             self.label.setText(str(text))
+        """
 
 
 # Every PyQt4 application must create an application object.
@@ -103,6 +156,9 @@ a = QtGui.QApplication(sys.argv)
 w = QtGui.QWidget()
 
 qb = MainBox()
+#qb = HasNode()
 qb.show()
+
+qb.boxArea.addNode()
 
 sys.exit(a.exec_())  # Finally, we enter the mainloop of the application.
