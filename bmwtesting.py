@@ -59,21 +59,32 @@ class HasNode(QtGui.QFrame):
         self.resizing = False
         self.clickedOffset = QtCore.QPoint()
         
+        self.button = QtGui.QPushButton('Edit', self) #[bmw] dialog button creation
+        self.button.setFocusPolicy(QtCore.Qt.NoFocus) #[bmw] sets focus policy
+        self.button.move(10, 10) #[bmw] initial pos (need to change update to maintain relative position)
+        self.connect(self.button, QtCore.SIGNAL('clicked()'), 
+            self.showDialog) #[bmw] binds button to showDialog()
+        self.setFocus() 
+
+        self.text = QtGui.QPlainTextEdit(self) #[bmw] creates lineedit "output"
+        self.text.move(10, 40) #[bmw] initial pos 
+        self.text.resize(100,30) #[bmw] intial size (hardcoded right now, need to update resize function to maintain relative size)
+        
     def mousePressEvent(self, event): #[bmw] mousepress listener: only handles clicks and not releases
         self.clickedOffset = event.pos()
 
-        if event.button() == QtCore.Qt.LeftButton and (self.clickedOffset.x() > self.width()-10) and (self.clickedOffset.y() > self.height()-10):
+        if event.button() == QtCore.Qt.LeftButton and (self.clickedOffset.x() > self.width()-10) and (self.clickedOffset.y() > self.height()-10): #check for 10px by 10px box on bottom right (better to not hardcode?)
             self.resizing = True
             self.clickedOffset = QtCore.QPoint(self.width() - self.clickedOffset.x(), self.height() - self.clickedOffset.y())
         elif event.button() == QtCore.Qt.LeftButton: #moving the box
             self.moving = True #[bmw] so we know that we clicked
         
     def mouseMoveEvent(self, event): #[bmw] handles mouse movement
-        if (event.buttons() & QtCore.Qt.LeftButton) and self.moving: #[bmw] only move when left butotn is clicked and click bool is on (redundant possibly?)
+        if (event.buttons() & QtCore.Qt.LeftButton) and self.moving: #[bmw] only move @ left button & moving bool is on
             self.move(self.pos()+event.pos()-self.clickedOffset)
-        elif (event.buttons() & QtCore.Qt.LeftButton) and self.resizing:
+        elif (event.buttons() & QtCore.Qt.LeftButton) and self.resizing: #[bmw] only resize @ left button & resizing bool is on
             btmRtPt = event.pos() + self.clickedOffset;
-            if(btmRtPt.x() > 10 and btmRtPt.y() > 10):
+            if(btmRtPt.x() > 10 and btmRtPt.y() > 10): #[bmw] make sure box is >10px in every dimension
                 self.resize(btmRtPt.x(),btmRtPt.y())
 
     def mouseReleaseEvent(self, event): #[bmw] handles mouse click releases
@@ -84,19 +95,28 @@ class HasNode(QtGui.QFrame):
             self.mouseMoveEvent(event)
             self.moving = False #[bmw] so we know to not move anymore
 
+            
+    def showDialog(self): #[bmw] dialog box to edit input
+        text, ok = QtGui.QInputDialog.getText(self, 'Input', 
+            'Enter something:')
+
+        if ok:
+            self.text.setPlainText(str(text))
+
 
 class BoxArea(QtGui.QWidget): #[bmw] boxarea widget to contain our moving boxes and stuff
     def __init__(self, parent=None):
         super(BoxArea, self).__init__(parent)
 
-        self.frames = []
+        self.frames = [] #[bmw] list of frames (added to using addNode)
         
         #self.frame = HasNode(self)
         #self.frame.show()
 
     def addExistingNode(self, node):
         self.frames.append(node)
-    def addNode(self):
+        
+    def addNode(self): #[bmw] interface to outside to add a basic node of 30,100 at 0,0
         newNode = HasNode(self)
         self.addExistingNode(newNode)
         newNode.show()
