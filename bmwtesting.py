@@ -61,14 +61,23 @@ class HasNode(QtGui.QFrame):
         
         self.button = QtGui.QPushButton('Edit', self) #[bmw] dialog button creation
         self.button.setFocusPolicy(QtCore.Qt.NoFocus) #[bmw] sets focus policy
-        self.button.move(10, 10) #[bmw] initial pos (need to change update to maintain relative position)
         self.connect(self.button, QtCore.SIGNAL('clicked()'), 
             self.showDialog) #[bmw] binds button to showDialog()
         self.setFocus() 
 
-        self.text = QtGui.QPlainTextEdit(self) #[bmw] creates lineedit "output"
-        self.text.move(10, 40) #[bmw] initial pos 
+        self.text = QtGui.QLabel(self) #[bmw] creates lineedit "output"
+
+        """ old hardcoded initial pos
+        self.button.move(50, 40) #[bmw] initial pos (need to change update to maintain relative position)
+        self.text.move(10, 10) #[bmw] initial pos 
         self.text.resize(100,30) #[bmw] intial size (hardcoded right now, need to update resize function to maintain relative size)
+        """
+
+        
+
+        self.resize(120,75)
+
+        self.setAutoFillBackground(True)
         
     def mousePressEvent(self, event): #[bmw] mousepress listener: only handles clicks and not releases
         self.clickedOffset = event.pos()
@@ -87,6 +96,11 @@ class HasNode(QtGui.QFrame):
             if(btmRtPt.x() > 10 and btmRtPt.y() > 10): #[bmw] make sure box is >10px in every dimension
                 self.resize(btmRtPt.x(),btmRtPt.y())
 
+    def resize(self, x, y): #[bmw] overloading resize to move text and button to relative positions (hardcoded pos; bad?)
+        super(HasNode, self).resize(x,y)
+        self.text.resize(x-20,y-40)
+        self.button.move(x-70,y-30)
+
     def mouseReleaseEvent(self, event): #[bmw] handles mouse click releases
         if event.button() == QtCore.Qt.LeftButton and self.resizing:
             self.mouseMoveEvent(event)
@@ -95,13 +109,14 @@ class HasNode(QtGui.QFrame):
             self.mouseMoveEvent(event)
             self.moving = False #[bmw] so we know to not move anymore
 
+
             
     def showDialog(self): #[bmw] dialog box to edit input
         text, ok = QtGui.QInputDialog.getText(self, 'Input', 
             'Enter something:')
 
         if ok:
-            self.text.setPlainText(str(text))
+            self.text.setText(str(text))
 
 
 class BoxArea(QtGui.QWidget): #[bmw] boxarea widget to contain our moving boxes and stuff
