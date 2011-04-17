@@ -39,7 +39,7 @@ class MainBox(QtGui.QMainWindow):
         exit.setStatusTip('Exit application') #tooltip
         self.connect(exit, QtCore.SIGNAL('triggered()'), QtCore.SLOT('close()')) #[bmw] binds exit's signal so that if it's triggered(), the application will close()
 
-        self.statusBar().showMessage("asdf") #[bmw] status bar message
+        self.statusBar().showMessage("Ready!") #[bmw] status bar message
 
         menubar = self.menuBar() #[bmw] grab menu bar pointer
         file = menubar.addMenu('&File') #[bmw] add a new menu
@@ -49,6 +49,8 @@ class MainBox(QtGui.QMainWindow):
         toolbar = self.addToolBar('Toolbar') #[bmw] make a new toolbar
         toolbar.addAction(addNode) #[bmw] add exit to toolbar
         toolbar.addAction(exit) #[bmw] add exit to toolbar
+
+        self.raise_() #[bmw] grab focus on creation
 
 class HasNode(QtGui.QFrame):
     def __init__(self, parent=None):
@@ -64,20 +66,14 @@ class HasNode(QtGui.QFrame):
         self.connect(self.button, QtCore.SIGNAL('clicked()'), 
             self.showDialog) #[bmw] binds button to showDialog()
         self.setFocus() 
-
         self.text = QtGui.QLabel(self) #[bmw] creates lineedit "output"
-
-        """ old hardcoded initial pos
-        self.button.move(50, 40) #[bmw] initial pos (need to change update to maintain relative position)
-        self.text.move(10, 10) #[bmw] initial pos 
-        self.text.resize(100,30) #[bmw] intial size (hardcoded right now, need to update resize function to maintain relative size)
-        """
-
         
-
         self.resize(120,75)
-
         self.setAutoFillBackground(True)
+        self.setLineWidth(1)
+
+        self.inputs = []
+        
         
     def mousePressEvent(self, event): #[bmw] mousepress listener: only handles clicks and not releases
         self.clickedOffset = event.pos()
@@ -87,6 +83,8 @@ class HasNode(QtGui.QFrame):
             self.clickedOffset = QtCore.QPoint(self.width() - self.clickedOffset.x(), self.height() - self.clickedOffset.y())
         elif event.button() == QtCore.Qt.LeftButton: #moving the box
             self.moving = True #[bmw] so we know that we clicked
+            
+        self.parent().reqFocus(self) #[bmw] inform parent that this box should grab focus (is there a pyqt focus class that does the same hting? i looked quickly and didn't think they were the same -- but are they?)
         
     def mouseMoveEvent(self, event): #[bmw] handles mouse movement
         if (event.buttons() & QtCore.Qt.LeftButton) and self.moving: #[bmw] only move @ left button & moving bool is on
@@ -108,15 +106,35 @@ class HasNode(QtGui.QFrame):
         if event.button() == QtCore.Qt.LeftButton and self.moving: 
             self.mouseMoveEvent(event)
             self.moving = False #[bmw] so we know to not move anymore
-
-
             
     def showDialog(self): #[bmw] dialog box to edit input
         text, ok = QtGui.QInputDialog.getText(self, 'Input', 
             'Enter something:')
-
         if ok:
             self.text.setText(str(text))
+
+    def reqFocus(self, node):
+        self.parent().reqFocus(node) #[bmw] recurse until @ boxarea
+
+    def setFocus(self):
+        self.setLineWidth(2)
+        
+    def loseFocus(self):
+        self.setLineWidth(1)
+
+    def addInput(self):
+        self.inputs.append(HasNodeInput(self))
+
+    def remInput(self):
+        self.inputs.remove
+            
+class HasNodeInput(QtGui.QFrame):
+    def __init__(self, parent=None):
+        super(HasNodeInput, self).__init__(parent)
+        self.text = QtGui.QLabel(self)
+        self.resize(20,20)
+        self.frameRect = QtCore.QRect()
+        self.setFrameStyle(1)
 
 
 class BoxArea(QtGui.QWidget): #[bmw] boxarea widget to contain our moving boxes and stuff
@@ -124,9 +142,7 @@ class BoxArea(QtGui.QWidget): #[bmw] boxarea widget to contain our moving boxes 
         super(BoxArea, self).__init__(parent)
 
         self.frames = [] #[bmw] list of frames (added to using addNode)
-        
-        #self.frame = HasNode(self)
-        #self.frame.show()
+        self.curFocus = None
 
     def addExistingNode(self, node):
         self.frames.append(node)
@@ -136,50 +152,11 @@ class BoxArea(QtGui.QWidget): #[bmw] boxarea widget to contain our moving boxes 
         self.addExistingNode(newNode)
         newNode.show()
 
-
-"""
-        #[bmw] set initial vars
-        self.clicked = False
-
-        self.button = QtGui.QPushButton('Edit', self) #[bmw] dialog button creation
-        self.button.setFocusPolicy(QtCore.Qt.NoFocus) #[bmw] sets focus policy
-        self.button.move(20, 20) #[bmw] initial pos
-        self.connect(self.button, QtCore.SIGNAL('clicked()'), 
-            self.showDialog) #[bmw] binds button to showDialog()
-        self.setFocus() 
-
-        self.label = QtGui.QLineEdit(self) #[bmw] creates lineedit "output"
-        self.label.move(120, 20) #[bmw] initial pos
-        """
-
-        
-"""
-
-    def mousePressEvent(self, event): #[bmw] mousepress listener: only handles clicks and not releases
-        if event.button() == QtCore.Qt.LeftButton: #[bmw] only care about left button
-            self.clicked = True #[bmw] so we know that we clicked
-
-    def mouseMoveEvent(self, event): #[bmw] handles mouse movement
-        if (event.buttons() & QtCore.Qt.LeftButton) and self.clicked: #[bmw] only move when left butotn is clicked and click bool is on (redundant possibly?)
-            self.moveThingTo(event.pos()) 
-
-    def mouseReleaseEvent(self, event): #[bmw] handles mouse click releases
-        if event.button() == QtCore.Qt.LeftButton and self.clicked: #[bmw] same as mousemove
-            self.moveThingTo(event.pos()) #[bmw] same as mousemove
-            self.clicked = False #[bmw] so we know to not move anymore
-
-    def moveThingTo(self, newPos): #[bmw] actual moving
-        self.frame.move(newPos)
-        #self.label.move(newPos)
-        #self.button.move(newPos - QtCore.QPoint(100,0)) #[bmw] offset (QPoint has arithmetic operators)
-
-    def showDialog(self): #[bmw] dialog box to edit input
-        text, ok = QtGui.QInputDialog.getText(self, 'Input', 
-            'Enter something:')
-
-        if ok:
-            self.label.setText(str(text))
-        """
+    def reqFocus(self, node):
+        if self.curFocus is not None:
+            self.curFocus.loseFocus()
+        node.setFocus()
+        self.curFocus = node
 
 
 # Every PyQt4 application must create an application object.
