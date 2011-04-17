@@ -29,12 +29,23 @@ class MainBox(QtGui.QMainWindow):
         self.boxArea = BoxArea() #[bmw] declare boxarea (defined below) - will contain the boxes to move around
         self.setCentralWidget(self.boxArea) #[bmw] set boxarea as central widget - central widgets take up the rest of the space (after some space is taken up by toolbar, etc)
 
-        addNode = QtGui.QAction(QtGui.QIcon('lambda.png'), 'Add Node', self)
+        #addNode = QtGui.QAction(QtGui.QIcon('lambda.png'), 'Add Node', self)
+        addNode = QtGui.QAction('Add Node', self)
         addNode.setShortcut('Ctrl+Shift+N')
         addNode.setStatusTip('Add a new node')
         self.connect(addNode, QtCore.SIGNAL('triggered()'), self.boxArea.addNode)
 
-        exit = QtGui.QAction(QtGui.QIcon('x.png'), 'Exit', self) #[bmw] set exit action, assign an image to it
+        addInput = QtGui.QAction('Add Input', self)
+        addInput.setStatusTip('Add an input to selected node')
+        self.connect(addInput, QtCore.SIGNAL('triggered()'), self.boxArea.addInput)
+
+        addOutput = QtGui.QAction('Add Output', self)
+        addOutput.setStatusTip('Add an output to selected node')
+        self.connect(addOutput, QtCore.SIGNAL('triggered()'), self.boxArea.addOutput)
+        
+
+        #exit = QtGui.QAction(QtGui.QIcon('x.png'), 'Exit', self) #[bmw] set exit action, assign an image to it
+        exit = QtGui.QAction('Exit', self) #[bmw] set exit action, assign an image to it
         exit.setShortcut('Ctrl+Q') #[bmw] set keyboard shortcut (cmd q on osx)
         exit.setStatusTip('Exit application') #tooltip
         self.connect(exit, QtCore.SIGNAL('triggered()'), QtCore.SLOT('close()')) #[bmw] binds exit's signal so that if it's triggered(), the application will close()
@@ -42,18 +53,27 @@ class MainBox(QtGui.QMainWindow):
         self.statusBar().showMessage("Ready!") #[bmw] status bar message
 
         menubar = self.menuBar() #[bmw] grab menu bar pointer
-        file = menubar.addMenu('&File') #[bmw] add a new menu
-        file.addAction(addNode)
-        file.addAction(exit) #[bmw] add exit to that menu
+        menuFile = menubar.addMenu('&File') #[bmw] add a new menu
+        menuFile.addAction(exit) #[bmw] add exit to that menu
+
+        menuNode = menubar.addMenu('&Node')
+        menuNode.addAction(addNode)
+        menuNode.addAction(addInput)
+        menuNode.addAction(addOutput)
+        
 
         toolbar = self.addToolBar('Toolbar') #[bmw] make a new toolbar
         toolbar.addAction(addNode) #[bmw] add exit to toolbar
-        toolbar.addAction(exit) #[bmw] add exit to toolbar
+        toolbar.addAction(addInput)
+        toolbar.addAction(addOutput)
+        #toolbar.addAction(exit) #[bmw] add exit to toolbar
 
         self.raise_() #[bmw] grab focus on creation
 
 class HasNode(QtGui.QFrame):
     def __init__(self, parent=None):
+        self.inputs = []
+        self.outputs = []
         super(HasNode, self).__init__(parent)
         self.frameRect = QtCore.QRect()
         self.setFrameStyle(1)
@@ -71,8 +91,6 @@ class HasNode(QtGui.QFrame):
         self.resize(120,75)
         self.setAutoFillBackground(True)
         self.setLineWidth(1)
-
-        self.inputs = []
         
         
     def mousePressEvent(self, event): #[bmw] mousepress listener: only handles clicks and not releases
@@ -99,6 +117,16 @@ class HasNode(QtGui.QFrame):
         self.text.resize(x-20,y-40)
         self.button.move(x-70,y-30)
 
+        yincr = 0
+        for inp in self.inputs:
+            inp.move(x-20,yincr)
+            yincr = yincr + 30
+            
+        yincr = 0
+        for outp in self.inputs:
+            outp.move(0,yincr)
+            yincr = yincr + 30
+
     def mouseReleaseEvent(self, event): #[bmw] handles mouse click releases
         if event.button() == QtCore.Qt.LeftButton and self.resizing:
             self.mouseMoveEvent(event)
@@ -116,6 +144,9 @@ class HasNode(QtGui.QFrame):
     def reqFocus(self, node):
         self.parent().reqFocus(node) #[bmw] recurse until @ boxarea
 
+    def reqMovingLink(self, link):
+        self.parent().reqMovingLink(link)
+
     def setFocus(self):
         self.setLineWidth(2)
         
@@ -126,15 +157,80 @@ class HasNode(QtGui.QFrame):
         self.inputs.append(HasNodeInput(self))
 
     def remInput(self):
-        self.inputs.remove
+        self.inputs.pop()
+        
+    def addOutput(self):
+        self.outputs.append(HasNodeOutput(self))
+
+    def remOutput(self):
+        self.outputs.pop()
             
-class HasNodeInput(QtGui.QFrame):
+class HasNodeIOVar(QtGui.QFrame):
+    ioVarId = 0
     def __init__(self, parent=None):
-        super(HasNodeInput, self).__init__(parent)
+        super(HasNodeIOVar, self).__init__(parent)
         self.text = QtGui.QLabel(self)
         self.resize(20,20)
         self.frameRect = QtCore.QRect()
         self.setFrameStyle(1)
+        self.ioVarId = HasNodeIOVar.ioVarId
+        HasNodeIOVar.ioVarId = HasNodeIOVar.ioVarId + 1
+        
+class HasNodeInput(HasNodeIOVar):
+    def __init__(self, parent=None):
+        super(HasNodeInput, self).__init__(parent)
+    def mousePressEvent(self, event):
+        self.parent().reqSinkMovingLink(self)
+        
+class HasNodeOutput(HasNodeIOVar):
+    def __init__(self, parent=None):
+        super(HasNodeOutput, self).__init__(parent)
+    def mousePressEvent(self, event):
+        self.parent().reqMovingLink(HasLink(self))
+        
+
+class HasLink(QtCore.QLine):
+    linkId = 0
+    def __init__(self, source = None, sink = None):
+        super(HasLink,self).__init__()
+        self.source = source
+        self.sink = sink
+        self.linkId = HasLink.linkId
+        HasLink.linkId = HasLink.linkId + 1
+
+    def updateLinks(self,reference):
+        if self.source is not None:
+            self.setP1(self.source.mapTo(reference,QtCore.QPoint(0,0)))
+        if self.sink is not None:
+            self.setP2(self.sink.pos())
+
+class HasLinkList(dict): #is there a better way of doing htis? currently stores dictionary by id, but also dictionary by source and by sink
+    def __init__(self):
+        super(HasLinkList,self).__init__()
+        self.sourceDict = {}
+        self.sinkDict = {}
+    def addLink(self,newLink):
+        self[newLink.linkId] = newLink
+        if newLink.source.ioVarId not in self.sourceDict:
+            self.sourceDict[newLink.source.ioVarId] = []
+        self.sourceDict[newLink.source.ioVarId].append(newLink)
+        if newLink.sink.ioVarId not in self.sinkDict:
+            self.sinkDict[newLink.sink.ioVarId] = []
+        self.sinkDict[newLink.sink.ioVarId].append(newLink)
+    def remLink(self,oldLink):
+        sourceIOid = oldLink.source.ioVarId
+        sinkIOid = oldLink.sink.ioVarId
+        linkId = oldLink.linkId
+        self.sourceDict.pop(sourceIOid)
+        self.sinkDict.pop(sinkIOid)
+        self.pop(linkId)
+    def byLink(self):
+        return self
+    def bySource(self):
+        return self.sourceDict
+    def bySink(self):
+        return self.sinkDict
+    
 
 
 class BoxArea(QtGui.QWidget): #[bmw] boxarea widget to contain our moving boxes and stuff
@@ -144,6 +240,10 @@ class BoxArea(QtGui.QWidget): #[bmw] boxarea widget to contain our moving boxes 
         self.frames = [] #[bmw] list of frames (added to using addNode)
         self.curFocus = None
 
+        self.linkList = HasLinkList()
+        self.movingLink = None
+        
+
     def addExistingNode(self, node):
         self.frames.append(node)
         
@@ -152,11 +252,42 @@ class BoxArea(QtGui.QWidget): #[bmw] boxarea widget to contain our moving boxes 
         self.addExistingNode(newNode)
         newNode.show()
 
+    def addInput(self):
+        if self.curFocus is not None:
+            self.curFocus.addInput()
+        else:
+            self.parent().statusBar().showMessage("Cannot add input: no selected node!")
+            
+    def addOutput(self):
+        if self.curFocus is not None:
+            self.curFocus.addOutput()
+        else:
+            parent.statusBar().showMessage("Cannot add output: no selected node!")
+
     def reqFocus(self, node):
         if self.curFocus is not None:
             self.curFocus.loseFocus()
         node.setFocus()
         self.curFocus = node
+
+    def reqMovingLink(self, link):
+        self.movingLink = link
+
+    def paintEvent(self, event):
+        super(BoxArea, self).paintEvent(event)
+        map(lambda x: x.updateLinks(), self.linkList)
+        qp = QtGui.QPainter(self)
+        qp.setPen(QtCore.Qt.black)
+        for link in self.linkList:
+            qp.drawLine(link)
+        if self.movingLink is not None:
+            self.movingLink.updateLinks(self)
+            qp.drawLine(self.movingLink)
+        self.update()
+            
+    def mouseMoveEvent(self, event): #[bmw] handles mouse movement
+        if self.movingLink is not None:
+            self.movingLink.setP2(event.pos())
 
 
 # Every PyQt4 application must create an application object.
