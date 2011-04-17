@@ -91,6 +91,7 @@ class HasNode(QtGui.QFrame):
         self.resize(120,75)
         self.setAutoFillBackground(True)
         self.setLineWidth(1)
+
         
         
     def mousePressEvent(self, event): #[bmw] mousepress listener: only handles clicks and not releases
@@ -123,7 +124,7 @@ class HasNode(QtGui.QFrame):
             yincr = yincr + 30
             
         yincr = 0
-        for outp in self.inputs:
+        for outp in self.outputs:
             outp.move(0,yincr)
             yincr = yincr + 30
 
@@ -146,6 +147,9 @@ class HasNode(QtGui.QFrame):
 
     def reqMovingLink(self, link):
         self.parent().reqMovingLink(link)
+        
+    def reqSinkMovingLink(self, link):
+        self.parent().reqSinkMovingLink(link)
 
     def setFocus(self):
         self.setLineWidth(2)
@@ -154,13 +158,19 @@ class HasNode(QtGui.QFrame):
         self.setLineWidth(1)
 
     def addInput(self):
-        self.inputs.append(HasNodeInput(self))
+        newInput = HasNodeInput(self)
+        self.inputs.append(newInput)
+        newInput.show()
+        self.resize(self.width(),self.height())
 
     def remInput(self):
         self.inputs.pop()
         
     def addOutput(self):
-        self.outputs.append(HasNodeOutput(self))
+        newOutput = HasNodeOutput(self)
+        self.outputs.append(newOutput)
+        newOutput.show()
+        self.resize(self.width(),self.height())
 
     def remOutput(self):
         self.outputs.pop()
@@ -186,7 +196,8 @@ class HasNodeOutput(HasNodeIOVar):
     def __init__(self, parent=None):
         super(HasNodeOutput, self).__init__(parent)
     def mousePressEvent(self, event):
-        self.parent().reqMovingLink(HasLink(self))
+        tempLink = HasLink(self)
+        self.parent().reqMovingLink(tempLink)
         
 
 class HasLink(QtCore.QLine):
@@ -202,7 +213,7 @@ class HasLink(QtCore.QLine):
         if self.source is not None:
             self.setP1(self.source.mapTo(reference,QtCore.QPoint(0,0)))
         if self.sink is not None:
-            self.setP2(self.sink.pos())
+            self.setP2(self.sink.mapTo(reference,QtCore.QPoint(0,0)))
 
 class HasLinkList(dict): #is there a better way of doing htis? currently stores dictionary by id, but also dictionary by source and by sink
     def __init__(self):
@@ -242,6 +253,7 @@ class BoxArea(QtGui.QWidget): #[bmw] boxarea widget to contain our moving boxes 
 
         self.linkList = HasLinkList()
         self.movingLink = None
+        self.setMouseTracking(True) #[bmw] allows to track mouse without clicking
         
 
     def addExistingNode(self, node):
@@ -262,7 +274,7 @@ class BoxArea(QtGui.QWidget): #[bmw] boxarea widget to contain our moving boxes 
         if self.curFocus is not None:
             self.curFocus.addOutput()
         else:
-            parent.statusBar().showMessage("Cannot add output: no selected node!")
+            self.parent().statusBar().showMessage("Cannot add output: no selected node!")
 
     def reqFocus(self, node):
         if self.curFocus is not None:
@@ -272,13 +284,22 @@ class BoxArea(QtGui.QWidget): #[bmw] boxarea widget to contain our moving boxes 
 
     def reqMovingLink(self, link):
         self.movingLink = link
+        
+    def reqSinkMovingLink(self, node):
+        if self.movingLink is not None:
+            self.movingLink.sink = node
+            self.linkList.addLink(self.movingLink)
+            self.movingLink = None
+        else:
+            self.parent().statusBar().showMessage("Cannot sink connection: no current connection!")
 
     def paintEvent(self, event):
         super(BoxArea, self).paintEvent(event)
-        map(lambda x: x.updateLinks(), self.linkList)
         qp = QtGui.QPainter(self)
         qp.setPen(QtCore.Qt.black)
-        for link in self.linkList:
+        #i wish there was a map for python dicts
+        for link in self.linkList.itervalues():
+            link.updateLinks(self)
             qp.drawLine(link)
         if self.movingLink is not None:
             self.movingLink.updateLinks(self)
@@ -302,6 +323,7 @@ w = QtGui.QWidget()
 qb = MainBox()
 #qb = HasNode()
 qb.show()
+
 
 qb.boxArea.addNode()
 
