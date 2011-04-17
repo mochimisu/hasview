@@ -20,7 +20,7 @@ class NodeArea(QtGui.QWidget): #[bmw] boxarea widget to contain our moving boxes
         self.frames.append(node)
         
     def addNode(self): #[bmw] interface to outside to add a basic node
-        newNode = HasNode.BaseNode(self)
+        newNode = BaseNode(self)
         self.addExistingNode(newNode)
         newNode.show()
 
