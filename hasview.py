@@ -28,15 +28,16 @@ class MainBox(QtGui.QMainWindow):
         self.resize(500, 500) #[bmw] window size
         self.setWindowTitle('PyQt Testing!') #[bmw] window title
 
-        self.nodeArea = HasNode.NodeArea() #[bmw] declare area for nodes to move around
+        #self.nodeArea = HasNode.NodeArea() #[bmw] declare area for nodes to move around
         
-        self.setCentralWidget(self.nodeArea) #[bmw] set boxarea as central widget - central widgets take up the rest of the space (after some space is taken up by toolbar, etc)
+        self.nodeArea = HasNode.NodeArea() # this is the QGraphicsView for the entire node structure.
 
-        #addNode = QtGui.QAction(QtGui.QIcon('lambda.png'), 'Add Node', self)
-        addNode = QtGui.QAction('Add Node', self)
-        addNode.setShortcut('Ctrl+Shift+N')
-        addNode.setStatusTip('Add a new node')
-        self.connect(addNode, QtCore.SIGNAL('triggered()'), self.nodeArea.addNode)
+        self.setCentralWidget(self.nodeArea.viewer) #[bmw] set boxarea as central widget - central widgets take up the rest of the space (after some space is taken up by toolbar, etc)
+
+        addHasScriptNode = QtGui.QAction('Add Haskell Script Node', self)
+        addHasScriptNode.setShortcut('Ctrl+Shift+N')
+        addHasScriptNode.setStatusTip('Add a new node')
+        self.connect(addHasScriptNode, QtCore.SIGNAL('triggered()'), self.nodeArea.addHasScriptNode)
 
         addInput = QtGui.QAction('Add Input', self)
         addInput.setStatusTip('Add an input to selected node')
@@ -45,7 +46,6 @@ class MainBox(QtGui.QMainWindow):
         addOutput = QtGui.QAction('Add Output', self)
         addOutput.setStatusTip('Add an output to selected node')
         self.connect(addOutput, QtCore.SIGNAL('triggered()'), self.nodeArea.addOutput)
-        
 
         #exit = QtGui.QAction(QtGui.QIcon('x.png'), 'Exit', self) #[bmw] set exit action, assign an image to it
         exit = QtGui.QAction('Exit', self) #[bmw] set exit action, assign an image to it
@@ -60,16 +60,15 @@ class MainBox(QtGui.QMainWindow):
         menuFile.addAction(exit) #[bmw] add exit to that menu
 
         menuNode = menubar.addMenu('&Node')
-        menuNode.addAction(addNode)
+        menuNode.addAction(addHasScriptNode)
         menuNode.addAction(addInput)
         menuNode.addAction(addOutput)
         
 
         toolbar = self.addToolBar('Toolbar') #[bmw] make a new toolbar
-        toolbar.addAction(addNode) #[bmw] add exit to toolbar
+        toolbar.addAction(addHasScriptNode) 
         toolbar.addAction(addInput)
         toolbar.addAction(addOutput)
-        #toolbar.addAction(exit) #[bmw] add exit to toolbar
 
         self.raise_() #[bmw] grab focus on creation
 
@@ -78,11 +77,6 @@ class MainBox(QtGui.QMainWindow):
 # Every PyQt4 application must create an application object.
 # The application object is located in the QtGui module.
 a = QtGui.QApplication(sys.argv)
-
-# The QWidget widget is the base class of all user interface objects in PyQt4.
-# We provide the default constructor for QWidget. The default constructor has no parent.
-# A widget with no parent is called a window. 
-w = QtGui.QWidget()
 
 qb = MainBox()
 qb.show()

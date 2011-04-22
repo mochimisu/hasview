@@ -4,264 +4,195 @@ from PyQt4 import QtGui, QtCore
 """
 Container for Nodes. Used for the main window's central widget.
 """
-class NodeArea(QtGui.QWidget): #[bmw] boxarea widget to contain our moving boxes and stuff
+class NodeArea(QtGui.QGraphicsScene):
     def __init__(self, parent=None):
+        """Create a NodeArea -- a GraphicsScene that contains all our nodes and their connectors."""
         super(NodeArea, self).__init__(parent)
 
-        self.frames = [] #[bmw] list of frames (added to using addNode)
-        self.curFocus = None #[bmw] pointer for current focused/clicked node (for adding input/output boxes)
+        self.viewer = QtGui.QGraphicsView(self)
 
-        self.linkList = HasLinkList() #[bmw] holds links
-        self.movingLink = None #[bmw] pointer for temporary sink-less link (when user is connecting stuff)
-        self.setMouseTracking(True) #[bmw] allows to track mouse without clicking
+    def addExistingNode(self, node):
+        """Adds a GraphicsItem to our scene and gives it focus"""
+        self.addItem(node)
+        self.setFocusItem(node)
         
-
-    def addExistingNode(self, node): #[bmw] Adds an existing node to the NodeArea
-        self.frames.append(node)
-        
-    def addNode(self): #[bmw] interface to outside to add a basic node
+    def addNode(self):
+        """[bmw] interface to outside to add a basic node."""
         newNode = BaseNode(self)
         self.addExistingNode(newNode)
-        newNode.show()
 
-    def addInput(self): #[bmw] adds an input box to the currently selected node
-        if self.curFocus is not None:
-            self.curFocus.addInput()
+    def addHasScriptNode(self):
+        """A HasScriptNode will be added and given focus -- such a node supports input / output links"""
+        newNode = HasScriptNode(self)
+        self.addExistingNode(newNode)
+
+    def addInput(self):
+        """[bmw] adds an input box to the node with focus."""
+        if self.focusItem(): 
+            self.focusItem().addInput()
         else:
-            self.parent().statusBar().showMessage("Cannot add input: no selected node!")
+            self.viewer.parent().statusBar().showMessage("Cannot add input: no selected node!")
             
-    def addOutput(self): #[bmw] adds an output box to the currently selected node
-        if self.curFocus is not None:
-            self.curFocus.addOutput()
+    def addOutput(self):
+        """[bmw] adds an output box to the node with focus"""
+        if self.focusItem(): 
+            self.focusItem().addOutput()
         else:
-            self.parent().statusBar().showMessage("Cannot add output: no selected node!")
-
-    def reqFocus(self, node): #[bmw] request focus for node to be the one in focu
-        if self.curFocus is not None:
-            self.curFocus.loseFocus()
-        node.setFocus()
-        self.curFocus = node
-
-    def reqMovingLink(self, link): #[bmw] request link to be used as the moving link
-        #TODO: be able to move sink or source
-        self.movingLink = link
-        self.movingLink.sink = None
-        
-    def reqSinkMovingLink(self, node): #[bmw] "sinks" the moving link
-        if self.movingLink is not None:
-            self.movingLink.sink = node
-            self.linkList.addLink(self.movingLink)
-            self.movingLink = None
-        else:
-            self.parent().statusBar().showMessage("Cannot sink connection: no current connection!")
-
-    def paintEvent(self, event): #[bmw] because HasLinks extend QLine, they need to be explicitly drawn
-        super(NodeArea, self).paintEvent(event)
-        qp = QtGui.QPainter(self)
-        qp.setPen(QtCore.Qt.black)
-        for link in self.linkList.itervalues():
-            link.updateLinks(self) #[bmw] JIT update link positions to make the boxes touch
-            qp.drawLine(link)
-        if self.movingLink is not None: #[bmw] draw moving link
-            self.movingLink.updateLinks(self)
-            qp.drawLine(self.movingLink)
-        self.update() #[bmw] signal to refresh buffer
-            
-    def mouseMoveEvent(self, event): #[bmw] handles mouse movement
-        if self.movingLink is not None:
-            self.movingLink.setP2(event.pos()) #[bmw] set sink of moving link
+            self.viewer.parent().statusBar().showMessage("Cannot add output: no selected node!")
 
 
-"""
-Basic Node
-"""
-class BaseNode(QtGui.QFrame):
+def setup_default_flags(item,
+                        flags = QtGui.QGraphicsItem.ItemIsMovable    | \
+                                QtGui.QGraphicsItem.ItemIsSelectable | \
+                                QtGui.QGraphicsItem.ItemIsFocusable):
+    """Make item (or items) have attributes from flags. By default items are focusable, selectable and movable."""
+    if type(item) is list:
+        for i in item:
+            setup_default_flags(i)
+    else:
+        item.setFlags(flags)
+
+def reassign_p1(line_ref, new_p1):
+    """Update the first point of line -- a GraphicsLineItem"""
+    line = line_ref.line()
+    line.setP1(new_p1)
+    line_ref.setLine(line)
+
+def reassign_p2(line_ref, new_p2):
+    """Update the second point of line -- a GraphicsLineItem"""
+    line = line_ref.line()
+    line.setP2(new_p2)
+    line_ref.setLine(line)
+
+class HasLine(QtGui.QGraphicsLineItem):
+    """HasLine -- a line from a source to a sink that resizes itself."""
+    def __init__(self, line, parent=None):
+        super(HasLine, self).__init__(line, parent)
+        self.source = None
+        self.sink = None
+
+    def setSource(self, source):
+        self.source = source
+
+    def setSink(self, sink):
+        self.sink = sink
+
+    def paint(self, painter, option, widget=None):
+        """Ensure that the line is still accurate. If not: redraw appropriately."""
+        if self.sink is not None and not self.sink.rect().contains(self.sink.mapFromScene(self.line().p2())):
+            reassign_p2(self,
+                        self.sink.mapToScene(self.sink.rect().center()))
+
+        if self.source is not None and not self.source.rect().contains(self.source.mapFromScene(self.line().p1())):
+            reassign_p1(self,
+                        self.source.mapToScene(self.source.rect().center()))
+
+        super(HasLine, self).paint(painter, option, widget)
+
+
+class BaseNode(QtGui.QGraphicsItemGroup):
+    """Basic Node -- a node can have inputs and outputs, and contains items."""
     def __init__(self, parent=None):
+        super(BaseNode, self).__init__(parent)
+
         self.inputs = [] #[bmw] lists to contain inputs and outputs
         self.outputs = []
-        super(BaseNode, self).__init__(parent)
-        self.frameRect = QtCore.QRect() #[bmw] create our containing rectangle
-        self.setFrameStyle(1) 
-        self.moving = False #[bmw] default value for moving var (if we're being dragged or not)
-        self.resizing = False #[bmw] " for resizing var (if we're being resized or not)
-        self.clickedOffset = QtCore.QPoint() #[bmw] maintain 2D vector offset (so can click anywhere in box and move relative to that position)
-        
-        self.button = QtGui.QPushButton('Edit', self) #[bmw] dialog button creation
-        self.button.setFocusPolicy(QtCore.Qt.NoFocus) #[bmw] sets focus policy
-        self.connect(self.button, QtCore.SIGNAL('clicked()'), 
-            self.showDialog) #[bmw] binds button to showDialog()
-        self.setFocus() 
-        self.text = QtGui.QLabel(self) #[bmw] creates lineedit "output"
-        
-        self.resize(120,75) #[bmw] default size
-        self.setAutoFillBackground(True) #[bmw] don't want to see through the background
-        self.setLineWidth(1) #[bmw] unfocused line width
 
-        
-        
-    def mousePressEvent(self, event): #[bmw] mousepress listener: only handles clicks and not releases
-        self.clickedOffset = event.pos()
+        setup_default_flags(self)
 
-        if event.button() == QtCore.Qt.LeftButton and (self.clickedOffset.x() > self.width()-10) and (self.clickedOffset.y() > self.height()-10): #check for 10px by 10px box on bottom right (better to not hardcode?)
-            self.resizing = True
-            self.clickedOffset = QtCore.QPoint(self.width() - self.clickedOffset.x(), self.height() - self.clickedOffset.y())
-        elif event.button() == QtCore.Qt.LeftButton: #moving the box
-            self.moving = True #[bmw] so we know that we clicked
-            
-        self.parent().reqFocus(self) #[bmw] inform parent that this box should grab focus (is there a pyqt focus class that does the same hting? i looked quickly and didn't think they were the same -- but are they?)
-        
-    def mouseMoveEvent(self, event): #[bmw] handles mouse movement
-        if (event.buttons() & QtCore.Qt.LeftButton) and self.moving: #[bmw] only move @ left button & moving bool is on
-            self.move(self.pos()+event.pos()-self.clickedOffset)
-        elif (event.buttons() & QtCore.Qt.LeftButton) and self.resizing: #[bmw] only resize @ left button & resizing bool is on
-            btmRtPt = event.pos() + self.clickedOffset;
-            if(btmRtPt.x() > 10 and btmRtPt.y() > 10): #[bmw] make sure box is >10px in every dimension
-                self.resize(btmRtPt.x(),btmRtPt.y())
+        self.setHandlesChildEvents(False) # we need this to ensure that group components are still interactable
 
-    def resize(self, x, y): #[bmw] overloading resize to move text and button to relative positions (hardcoded pos; bad?)
-        super(BaseNode, self).resize(x,y)
-        self.text.resize(x-20,y-40)
-        self.button.move(x-70,y-30)
+        # if we want syntax highlighting for Haskell Nodes s/QLabel/QTextEdit
+        # and subclass QSyntaxHighlighter
 
-        yincr = 0 #[bmw] space inputs and outputs. TODO: dynamically?
-        for inp in self.inputs:
-            inp.move(x-20,yincr)
-            yincr = yincr + 30
-            
-        yincr = 0
-        for outp in self.outputs:
-            outp.move(0,yincr)
-            yincr = yincr + 30
+    def addInput(self):
+        new_input = HasNodeInput(len(self.inputs), parent=self)
+        self.inputs.append(new_input)
 
-    def mouseReleaseEvent(self, event): #[bmw] handles mouse click releases
-        if event.button() == QtCore.Qt.LeftButton and self.resizing:
-            self.mouseMoveEvent(event) #[bmw] one last update
-            self.resizing = False #[bmw] so we know to not resize anymore
-        if event.button() == QtCore.Qt.LeftButton and self.moving: 
-            self.mouseMoveEvent(event)
-            self.moving = False #[bmw] so we know to not move anymore
-            
-    def showDialog(self): #[bmw] dialog box to edit input
-        text, ok = QtGui.QInputDialog.getText(self, 'Input', 
-            'Enter something:')
-        if ok:
-            self.text.setText(str(text))
-
-    def reqFocus(self, node): #[bmw] child node requested focus from us; we don't deal with that, but NodeArea does
-        self.parent().reqFocus(node) #[bmw] recurse until @ nodearea
-
-    def reqMovingLink(self, link): #[bmw] link was request to be moving here; we should deal with this later when we have nested nodes
-        self.parent().reqMovingLink(link)
-        
-    def reqSinkMovingLink(self, link): #[bmw] moving link was requested to be sink'd
-        self.parent().reqSinkMovingLink(link)
-
-    def setFocus(self): #[bmw] set focus by increasing border
-        self.setLineWidth(2)
-        
-    def loseFocus(self): #[bmw] lose focus by decreasing border
-        self.setLineWidth(1)
-        
-    def addInput(self): #[bmw] add input box
-        newInput = HasNodeInput(self)
-        self.inputs.append(newInput)
-        newInput.show()
-        self.resize(self.width(),self.height())
-
-    def remInput(self): #[bmw] remove input box. TODO: find better way
-        self.inputs.pop()
-        
-    def addOutput(self): #[bmw] add output box
-        newOutput = HasNodeOutput(self)
-        self.outputs.append(newOutput)
-        newOutput.show()
-        self.resize(self.width(),self.height())
-
-    def remOutput(self): #[bmw] remove output box. same issue as remInput
-        self.outputs.pop()
+    def addOutput(self):
+        new_output = HasNodeOutput(len(self.outputs), parent=self)
+        self.outputs.append(new_output)
 
 
-"""
-Basic IO box for nodes
-"""
-class HasNodeIOVar(QtGui.QFrame):
-    ioVarId = 0 #[bmw] class var link ID to be used as index in HasLinkList
+class HasScriptNode(BaseNode):
+    """Haskell Script Node -- contains haskell code, the equivalent of MathScript nodes in LabView."""
+    def __init__(self, parent=None):
+        super(HasScriptNode, self).__init__()
+
+        rect = QtGui.QGraphicsRectItem()
+        rect.setRect(QtCore.QRectF(self.x(), self.y(), 200, 200)) #[bmw] default size
+        self.addToGroup(rect)
+
+        text = HasTextNode("Enter Text Here")
+        text_flags = QtCore.Qt.TextEditorInteraction
+        text.setTextInteractionFlags(text_flags)
+        self.addToGroup(text)
+
+        setup_default_flags(self)
+
+
+class HasTextNode(QtGui.QGraphicsTextItem):
+    """Wrapper around QGraphicsTextItem. Will be edited to have syntax highlighting."""
+    def __init__(self, parent=None):
+        super(HasTextNode, self).__init__(parent)
+
+    def addInput(self):
+        return self.parentItem().addInput()
+
+    def addOutput(self):
+        return self.parentItem().addOutput()
+
+
+class HasNodeIOVar(QtGui.QGraphicsRectItem):
+    """Basic IO box for nodes."""
+    current_line = None
     def __init__(self, parent=None):
         super(HasNodeIOVar, self).__init__(parent)
-        self.text = QtGui.QLabel(self)
-        self.resize(20,20) #[bmw] default size
-        self.frameRect = QtCore.QRect()
-        self.setFrameStyle(1)
-        self.ioVarId = HasNodeIOVar.ioVarId
-        HasNodeIOVar.ioVarId = HasNodeIOVar.ioVarId + 1
-"""
-Input box for nodes
-"""
+        setup_default_flags(self,
+                            flags = QtGui.QGraphicsItem.ItemIsSelectable | \
+                                    QtGui.QGraphicsItem.ItemIsFocusable)
+
+    def addInput(self):
+        return self.parentItem().addInput()
+
+    def addOutput(self):
+        return self.parentItem().addOutput()
+
+
 class HasNodeInput(HasNodeIOVar):
-    def __init__(self, parent=None):
+    """Input box for nodes -- will be placed on the left of a node"""
+    def __init__(self, num_prev_inputs, parent=None):
         super(HasNodeInput, self).__init__(parent)
-    def mousePressEvent(self, event): #[bmw] on click, request to sink the link
-        self.parent().reqSinkMovingLink(self)
-        
-"""
-Output box for nodes
-"""
+        self.setRect(-20,                  # place on left side
+                     20 * num_prev_inputs, # account for earlier inputs
+                     20,                   # 20x20 is a reasonable box size
+                     20)
+
+    def mouseDoubleClickEvent(self, event):
+        HasNodeIOVar.current_line = HasLine(QtCore.QLineF(self.mapToScene(self.rect().center()),
+                                                          self.mapToScene(self.rect().center())))
+        HasNodeIOVar.current_line.setSource(self)
+        self.scene().addItem(HasNodeIOVar.current_line)
+
+    def keyPressEvent(self, event):
+        if event.key() is QtCore.Qt.Key_Escape:
+            HasNodeIOVar.current_line = None
+
+
 class HasNodeOutput(HasNodeIOVar):
-    def __init__(self, parent=None):
+    """Output box for nodes."""
+    def __init__(self, num_prev_outputs, parent=None):
         super(HasNodeOutput, self).__init__(parent)
-    def mousePressEvent(self, event):
-        tempLink = HasLink(self) #[bmw] create a new temporary link and request it to be the moving link
-        self.parent().reqMovingLink(tempLink)
-        
-"""
-Link between nodes. Needs to be explicitly drawn. How to make clickable?
-"""
-class HasLink(QtCore.QLine):
-    linkId = 0 #[bmw] link id used to let dictionary be indexable
-    def __init__(self, source = None, sink = None):
-        super(HasLink,self).__init__()
-        self.source = source #[bmw] contains information of bound source and sink
-        self.sink = sink
-        self.linkId = HasLink.linkId
-        HasLink.linkId = HasLink.linkId + 1
+        self.setRect(self.parentItem().boundingRect().topRight().x(),   # find the right index to use [haha]
+                     20 * num_prev_outputs,                             # account for earlier inputs
+                     20,
+                     20)
 
-    def updateLinks(self,reference): #[bmw] update positions of local P1 and P2 to the actual locations in reference's coord system. TODO: possibly move reference somewhere else?
-        if self.source is not None:
-            self.setP1(self.source.mapTo(reference,QtCore.QPoint(0,0)))
-        if self.sink is not None:
-            self.setP2(self.sink.mapTo(reference,QtCore.QPoint(0,0)))
+    def mouseDoubleClickEvent(self, event):
+        if HasNodeIOVar.current_line is not None:
+            reassign_p2(HasNodeIOVar.current_line, 
+                        self.mapToScene(self.rect().center()))
+            HasNodeIOVar.current_line.setSink(self)
+        HasNodeIOVar.current_line = None
 
-"""
-Dictionary structure for containing the links.
-3 representations
-HasLinkList.byLink() gives a dictionary indexed by link ID
-HasLinkList.bySource() gives a dictionary indexed by source ID
-HasLinkList.bySink() gives a dictionary indexed by sink ID
-"""
-class HasLinkList(dict): #is there a better way of doing htis? currently stores dictionary by id, but also dictionary by source and by sink
-    def __init__(self):
-        super(HasLinkList,self).__init__()
-        self.sourceDict = {} #[bmw] maintain separate dictionaries by source and by sink
-        self.sinkDict = {}
-    def addLink(self,newLink): #[bmw] add a link, must maintain all 3 dicts
-        self[newLink.linkId] = newLink
-        if newLink.source.ioVarId not in self.sourceDict:
-            self.sourceDict[newLink.source.ioVarId] = []
-        self.sourceDict[newLink.source.ioVarId].append(newLink)
-        if newLink.sink.ioVarId not in self.sinkDict:
-            self.sinkDict[newLink.sink.ioVarId] = []
-        self.sinkDict[newLink.sink.ioVarId].append(newLink)
-    def remLink(self,oldLink): #[bmw] remove a link, must maintain all 3 dicts
-        sourceIOid = oldLink.source.ioVarId
-        sinkIOid = oldLink.sink.ioVarId
-        linkId = oldLink.linkId
-        self.sourceDict.pop(sourceIOid)
-        self.sinkDict.pop(sinkIOid)
-        self.pop(linkId)
-    def byLink(self): #[bmw] access different tables (but all have same information, just indexed differently)
-        return self
-    def bySource(self):
-        return self.sourceDict
-    def bySink(self):
-        return self.sinkDict
-    
+
