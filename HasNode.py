@@ -1,12 +1,14 @@
 import sys
 from PyQt4 import QtGui, QtCore
 
-"""
-Container for Nodes. Used for the main window's central widget.
-"""
+
 class NodeArea(QtGui.QGraphicsScene):
+    """Container for Nodes. Used for the main window's central widget."""
     def __init__(self, parent=None):
-        """Create a NodeArea -- a GraphicsScene that contains all our nodes and their connectors."""
+        """Create a NodeArea
+        NodeArea is a GraphicsScene that contains all our nodes and connectors.
+
+        """
         super(NodeArea, self).__init__(parent)
 
         self.viewer = QtGui.QGraphicsView(self)
@@ -15,27 +17,30 @@ class NodeArea(QtGui.QGraphicsScene):
         """Adds a GraphicsItem to our scene and gives it focus"""
         self.addItem(node)
         self.setFocusItem(node)
-        
+
     def addNode(self):
         """[bmw] interface to outside to add a basic node."""
         newNode = BaseNode(self)
         self.addExistingNode(newNode)
 
     def addHasScriptNode(self):
-        """A HasScriptNode will be added and given focus -- such a node supports input / output links"""
+        """A HasScriptNode will be added and given focus
+        HasScriptNode supports input / output links
+
+        """
         newNode = HasScriptNode(self)
         self.addExistingNode(newNode)
 
     def addInput(self):
         """[bmw] adds an input box to the node with focus."""
-        if self.focusItem(): 
+        if self.focusItem():
             self.focusItem().addInput()
         else:
             self.viewer.parent().statusBar().showMessage("Cannot add input: no selected node!")
-            
+
     def addOutput(self):
         """[bmw] adds an output box to the node with focus"""
-        if self.focusItem(): 
+        if self.focusItem():
             self.focusItem().addOutput()
         else:
             self.viewer.parent().statusBar().showMessage("Cannot add output: no selected node!")
@@ -52,17 +57,20 @@ def setup_default_flags(item,
     else:
         item.setFlags(flags)
 
+
 def reassign_p1(line_ref, new_p1):
     """Update the first point of line -- a GraphicsLineItem"""
     line = line_ref.line()
     line.setP1(new_p1)
     line_ref.setLine(line)
 
+
 def reassign_p2(line_ref, new_p2):
     """Update the second point of line -- a GraphicsLineItem"""
     line = line_ref.line()
     line.setP2(new_p2)
     line_ref.setLine(line)
+
 
 class HasLine(QtGui.QGraphicsLineItem):
     """HasLine -- a line from a source to a sink that resizes itself."""
@@ -95,12 +103,12 @@ class BaseNode(QtGui.QGraphicsItemGroup):
     def __init__(self, parent=None):
         super(BaseNode, self).__init__(parent)
 
-        self.inputs = [] #[bmw] lists to contain inputs and outputs
+        self.inputs = []  #[bmw] lists to contain inputs and outputs
         self.outputs = []
 
         setup_default_flags(self)
 
-        self.setHandlesChildEvents(False) # we need this to ensure that group components are still interactable
+        self.setHandlesChildEvents(False)  # we need this to ensure that group components are still interactable
 
         # if we want syntax highlighting for Haskell Nodes s/QLabel/QTextEdit
         # and subclass QSyntaxHighlighter
@@ -120,7 +128,7 @@ class HasScriptNode(BaseNode):
         super(HasScriptNode, self).__init__()
 
         rect = QtGui.QGraphicsRectItem()
-        rect.setRect(QtCore.QRectF(self.x(), self.y(), 200, 200)) #[bmw] default size
+        rect.setRect(QtCore.QRectF(self.x(), self.y(), 200, 200))  #[bmw] default size
         self.addToGroup(rect)
 
         text = HasTextNode("Enter Text Here")
@@ -146,6 +154,7 @@ class HasTextNode(QtGui.QGraphicsTextItem):
 class HasNodeIOVar(QtGui.QGraphicsRectItem):
     """Basic IO box for nodes."""
     current_line = None
+
     def __init__(self, parent=None):
         super(HasNodeIOVar, self).__init__(parent)
         setup_default_flags(self,
@@ -163,9 +172,9 @@ class HasNodeInput(HasNodeIOVar):
     """Input box for nodes -- will be placed on the left of a node"""
     def __init__(self, num_prev_inputs, parent=None):
         super(HasNodeInput, self).__init__(parent)
-        self.setRect(-20,                  # place on left side
-                     20 * num_prev_inputs, # account for earlier inputs
-                     20,                   # 20x20 is a reasonable box size
+        self.setRect(-20,                   # place on left side
+                     20 * num_prev_inputs,  # account for earlier inputs
+                     20,                    # 20x20 is a reasonable box size
                      20)
 
     def mouseDoubleClickEvent(self, event):
@@ -190,9 +199,7 @@ class HasNodeOutput(HasNodeIOVar):
 
     def mouseDoubleClickEvent(self, event):
         if HasNodeIOVar.current_line is not None:
-            reassign_p2(HasNodeIOVar.current_line, 
+            reassign_p2(HasNodeIOVar.current_line,
                         self.mapToScene(self.rect().center()))
             HasNodeIOVar.current_line.setSink(self)
         HasNodeIOVar.current_line = None
-
-
