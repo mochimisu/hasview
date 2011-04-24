@@ -54,7 +54,7 @@ class NodeArea(QtGui.QGraphicsScene):
                             event.scenePos())
             if HasNodeIOVar.current_line.source is None:
                 reassign_p1(HasNodeIOVar.current_line,
-                            event.pos())
+                            event.scenePos())
     def keyPressEvent(self, event):
         self.removeItem(HasNodeIOVar.current_line)
         HasNodeIOVar.current_line = None
@@ -197,10 +197,17 @@ class HasNodeInput(HasNodeIOVar):
                      20)
 
     def mouseDoubleClickEvent(self, event):
-        HasNodeIOVar.current_line = HasLine(QtCore.QLineF(self.mapToScene(self.rect().center()),
+        if HasNodeIOVar.current_line is not None:
+            if HasNodeIOVar.current_line.source is None:
+                reassign_p1(HasNodeIOVar.current_line,
+                            self.mapToScene(self.rect().center()))
+                HasNodeIOVar.current_line.setSource(self)
+                HasNodeIOVar.current_line = None
+        else:
+            HasNodeIOVar.current_line = HasLine(QtCore.QLineF(self.mapToScene(self.rect().center()),
                                                           self.mapToScene(self.rect().center())))
-        HasNodeIOVar.current_line.setSource(self)
-        self.scene().addItem(HasNodeIOVar.current_line)
+            HasNodeIOVar.current_line.setSource(self)
+            self.scene().addItem(HasNodeIOVar.current_line)
 
     def keyPressEvent(self, event):
         if event.key() is QtCore.Qt.Key_Escape:
@@ -218,10 +225,16 @@ class HasNodeOutput(HasNodeIOVar):
 
     def mouseDoubleClickEvent(self, event):
         if HasNodeIOVar.current_line is not None:
-            reassign_p2(HasNodeIOVar.current_line,
-                        self.mapToScene(self.rect().center()))
+            if HasNodeIOVar.current_line.sink is None:
+                reassign_p2(HasNodeIOVar.current_line,
+                            self.mapToScene(self.rect().center()))
+                HasNodeIOVar.current_line.setSink(self)
+                HasNodeIOVar.current_line = None
+        else:
+            HasNodeIOVar.current_line = HasLine(QtCore.QLineF(self.mapToScene(self.rect().center()),
+                                                          self.mapToScene(self.rect().center())))
             HasNodeIOVar.current_line.setSink(self)
-        HasNodeIOVar.current_line = None
+            self.scene().addItem(HasNodeIOVar.current_line)
 
 
 class HasHighlighter(QtGui.QSyntaxHighlighter):
