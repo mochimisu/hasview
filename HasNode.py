@@ -45,6 +45,20 @@ class NodeArea(QtGui.QGraphicsScene):
         else:
             self.viewer.parent().statusBar().showMessage("Cannot add output: no selected node!")
 
+    def mouseMoveEvent(self, event):
+        """mouse movement of node area. super() call allows to drag boxes around, and the rest allows to display lines after an iovar was selected """
+        super(NodeArea, self).mouseMoveEvent(event)
+        if HasNodeIOVar.current_line is not None:
+            if HasNodeIOVar.current_line.sink is None:
+                reassign_p2(HasNodeIOVar.current_line,
+                            event.scenePos())
+            if HasNodeIOVar.current_line.source is None:
+                reassign_p1(HasNodeIOVar.current_line,
+                            event.pos())
+    def keyPressEvent(self, event):
+        self.removeItem(HasNodeIOVar.current_line)
+        HasNodeIOVar.current_line = None
+
 
 def setup_default_flags(item,
                         flags = QtGui.QGraphicsItem.ItemIsMovable    | \
