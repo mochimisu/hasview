@@ -55,6 +55,7 @@ class NodeArea(QtGui.QGraphicsScene):
             if HasNodeIOVar.current_line.source is None:
                 reassign_p1(HasNodeIOVar.current_line,
                             event.scenePos())
+
     def keyPressEvent(self, event):
         self.removeItem(HasNodeIOVar.current_line)
         HasNodeIOVar.current_line = None
@@ -101,11 +102,11 @@ class HasLine(QtGui.QGraphicsLineItem):
 
     def paint(self, painter, option, widget=None):
         """Ensure that the line is still accurate. If not: redraw appropriately."""
-        if self.sink is not None and not self.sink.rect().contains(self.sink.mapFromScene(self.line().p2())):
+        if self.sink is not None and not self.sink.rect().center() == (self.sink.mapFromScene(self.line().p2())):
             reassign_p2(self,
                         self.sink.mapToScene(self.sink.rect().center()))
 
-        if self.source is not None and not self.source.rect().contains(self.source.mapFromScene(self.line().p1())):
+        if self.source is not None and not self.source.rect().center() == (self.source.mapFromScene(self.line().p1())):
             reassign_p1(self,
                         self.source.mapToScene(self.source.rect().center()))
 
@@ -154,8 +155,6 @@ class HasScriptNode(BaseNode):
         highlighter = HasHighlighter(text.document())
 
         setup_default_flags(self)
-
-
 
 
 class HasTextNode(QtGui.QGraphicsTextItem):
@@ -232,7 +231,7 @@ class HasNodeOutput(HasNodeIOVar):
                 HasNodeIOVar.current_line = None
         else:
             HasNodeIOVar.current_line = HasLine(QtCore.QLineF(self.mapToScene(self.rect().center()),
-                                                          self.mapToScene(self.rect().center())))
+                                                              self.mapToScene(self.rect().center())))
             HasNodeIOVar.current_line.setSink(self)
             self.scene().addItem(HasNodeIOVar.current_line)
 
@@ -245,7 +244,7 @@ class HasHighlighter(QtGui.QSyntaxHighlighter):
     def highlightBlock(self, text):
         """This function, called on each change to its parent textItem, will do syntax highlighting.
 
-        To add a new highlighting rule, add a pattern_map entry with a QRegExp key, 
+        To add a new highlighting rule, add a pattern_map entry with a QRegExp key,
         and a QTextCharFormat value.
 
         """
@@ -263,8 +262,13 @@ class HasHighlighter(QtGui.QSyntaxHighlighter):
         comment_expression = QtCore.QRegExp(comment_pattern)
         pattern_map[comment_expression] = comment_highlight
 
-        
-        # Note that the documentation for how to do this at 
+        punctuation_highlight = QtGui.QTextCharFormat()
+        punctuation_highlight.setForeground(QtCore.Qt.darkRed)
+        punctuation_pattern = QtCore.QString("[\\[|\\]|\\(|\\)|=|\\,|(\\->)]")
+        punctuation_expression = QtCore.QRegExp(punctuation_pattern)
+        pattern_map[punctuation_expression] = punctuation_highlight
+
+        # Note that the documentation for how to do this at
         # http://www.riverbankcomputing.co.uk/static/Docs/PyQt4/html/qsyntaxhighlighter.html#highlightBlock
         # is _very_ wrong. exp.matchedLength() only works if used in conjunction with indexIn().
         for exp, pattern in pattern_map.items():
