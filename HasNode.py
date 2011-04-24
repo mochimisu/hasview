@@ -136,7 +136,12 @@ class HasScriptNode(BaseNode):
         text.setTextInteractionFlags(text_flags)
         self.addToGroup(text)
 
+        # syntax highlighting is fun! Have some for breakfast.
+        highlighter = HasHighlighter(text.document())
+
         setup_default_flags(self)
+
+
 
 
 class HasTextNode(QtGui.QGraphicsTextItem):
@@ -203,3 +208,34 @@ class HasNodeOutput(HasNodeIOVar):
                         self.mapToScene(self.rect().center()))
             HasNodeIOVar.current_line.setSink(self)
         HasNodeIOVar.current_line = None
+
+
+class HasHighlighter(QtGui.QSyntaxHighlighter):
+    """Defining syntax highlighting schemas for Haskell"""
+    def __init__(self, parent):
+        super(HasHighlighter, self).__init__(parent)
+
+    def highlightBlock(self, text):
+        """This function, called on each change to its parent textItem, will do syntax highlighting.
+
+        To add a new highlighting rule, add a pattern_map entry with a QRegExp key, 
+        and a QTextCharFormat value.
+
+        """
+        pattern_map = {}
+
+        typedef_highlight = QtGui.QTextCharFormat()
+        typedef_highlight.setForeground(QtCore.Qt.red)
+        typedef_pattern = QtCore.QString("::(?!:)")
+        typedef_expression = QtCore.QRegExp(typedef_pattern)
+        pattern_map[typedef_expression] = typedef_highlight
+        
+        # Note that the documentation for how to do this at 
+        # http://www.riverbankcomputing.co.uk/static/Docs/PyQt4/html/qsyntaxhighlighter.html#highlightBlock
+        # is _very_ wrong. exp.matchedLength() only works if used in conjunction with indexIn().
+        for exp, pattern in pattern_map.items():
+            index = exp.indexIn(text)
+            while index >= 0:
+                length = exp.matchedLength()
+                self.setFormat(index, length, pattern)
+                index = exp.indexIn(text, index + length)
