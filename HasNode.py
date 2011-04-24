@@ -229,6 +229,13 @@ class HasHighlighter(QtGui.QSyntaxHighlighter):
         typedef_pattern = QtCore.QString("::(?!:)")
         typedef_expression = QtCore.QRegExp(typedef_pattern)
         pattern_map[typedef_expression] = typedef_highlight
+
+        comment_highlight = QtGui.QTextCharFormat()
+        comment_highlight.setForeground(QtGui.QColor(18, 73, 74))  # using colors from syntax-highlight
+        comment_pattern = QtCore.QString("\\-\\-.*")
+        comment_expression = QtCore.QRegExp(comment_pattern)
+        pattern_map[comment_expression] = comment_highlight
+
         
         # Note that the documentation for how to do this at 
         # http://www.riverbankcomputing.co.uk/static/Docs/PyQt4/html/qsyntaxhighlighter.html#highlightBlock
