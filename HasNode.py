@@ -57,8 +57,10 @@ class NodeArea(QtGui.QGraphicsScene):
                             event.scenePos())
 
     def keyPressEvent(self, event):
-        self.removeItem(HasNodeIOVar.current_line)
-        HasNodeIOVar.current_line = None
+        if event.key() == QtCore.Qt.Key_Escape and HasNodeIOVar.current_line is not None:
+            print 'a'
+            self.removeItem(HasNodeIOVar.current_line)
+            HasNodeIOVar.current_line = None
 
 
 def setup_default_flags(item,
@@ -93,6 +95,7 @@ class HasLine(QtGui.QGraphicsLineItem):
         super(HasLine, self).__init__(line, parent)
         self.source = None
         self.sink = None
+        self.cubicPath = QtGui.QPainterPath()
 
     def setSource(self, source):
         self.source = source
@@ -110,7 +113,17 @@ class HasLine(QtGui.QGraphicsLineItem):
             reassign_p1(self,
                         self.source.mapToScene(self.source.rect().center()))
 
-        super(HasLine, self).paint(painter, option, widget)
+        self.updateCubic()
+        painter.setPen(QtCore.Qt.black)
+        painter.drawPath(self.cubicPath)
+#super(HasLine, self).paint(painter, option, widget)
+
+    def updateCubic(self): #i think theres a better way to do this....
+        self.cubicPath = QtGui.QPainterPath(self.line().p1())
+        self.cubicPath.cubicTo(self.line().p1() + QtCore.QPointF(-100,-100),self.line().p2() + QtCore.QPointF(100,100),self.line().p2())
+    
+    def boundingRect(self):
+        return self.cubicPath.boundingRect()
 
 
 class BaseNode(QtGui.QGraphicsItemGroup):
@@ -210,6 +223,7 @@ class HasNodeInput(HasNodeIOVar):
 
     def keyPressEvent(self, event):
         if event.key() is QtCore.Qt.Key_Escape:
+            print 'b'
             HasNodeIOVar.current_line = None
 
 
