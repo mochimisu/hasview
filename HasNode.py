@@ -59,7 +59,7 @@ class NodeArea(QtGui.QGraphicsScene):
     def keyPressEvent(self, event):
         if event.key() == QtCore.Qt.Key_Escape and HasNodeIOVar.current_line is not None: #i think we need ==? not sure
             #sometimes segfaults and i dont know why
-            self.removeItem(HasNodeIOVar.current_line)
+            HasNodeIOVar.current_line.scene().removeItem(HasNodeIOVar.current_line)
             HasNodeIOVar.current_line = None
 
 
