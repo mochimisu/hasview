@@ -1,7 +1,6 @@
 import sys
 from PyQt4 import QtGui, QtCore
 
-
 class NodeArea(QtGui.QGraphicsScene):
     """Container for Nodes. Used for the main window's central widget."""
     def __init__(self, parent=None):
@@ -29,6 +28,11 @@ class NodeArea(QtGui.QGraphicsScene):
 
         """
         newNode = HasScriptNode(self)
+        self.addExistingNode(newNode)
+
+    def addConstantNode(self):
+        """better way to do this than to make 1000 functions?"""
+        newNode = ConstantNode(self)
         self.addExistingNode(newNode)
 
     def addInput(self):
@@ -138,6 +142,11 @@ class BaseNode(QtGui.QGraphicsItemGroup):
 
         self.setHandlesChildEvents(False)  # we need this to ensure that group components are still interactable
 
+        self.frameRect = QtGui.QGraphicsRectItem()
+        self.frameRect.setRect(QtCore.QRectF(self.x(), self.y(), 200, 200))  #default size
+        #self.boundingRect = rect
+        self.addToGroup(self.frameRect)
+
         # if we want syntax highlighting for Haskell Nodes s/QLabel/QTextEdit
         # and subclass QSyntaxHighlighter
 
@@ -155,10 +164,6 @@ class HasScriptNode(BaseNode):
     def __init__(self, parent=None):
         super(HasScriptNode, self).__init__()
 
-        rect = QtGui.QGraphicsRectItem()
-        rect.setRect(QtCore.QRectF(self.x(), self.y(), 200, 200))  #[bmw] default size
-        self.addToGroup(rect)
-
         text = HasTextNode("Enter Text Here")
         text_flags = QtCore.Qt.TextEditorInteraction
         text.setTextInteractionFlags(text_flags)
@@ -168,6 +173,24 @@ class HasScriptNode(BaseNode):
         highlighter = HasHighlighter(text.document())
 
         setup_default_flags(self)
+
+class ConstantNode(BaseNode):
+    """Constant value used as an output only"""
+    def __init__(self, parent=None):
+        super(ConstantNode, self).__init__()
+
+        self.removeFromGroup(self.frameRect)
+        self.frameRect.setRect(QtCore.QRectF(self.x(), self.y(), 125, 25))
+        self.addToGroup(self.frameRect)
+
+        text = HasTextNode("Variable Name")
+        text_flags = QtCore.Qt.TextEditorInteraction
+        text.setTextInteractionFlags(text_flags)
+        self.addToGroup(text)
+        
+        setup_default_flags(self)
+
+        self.addOutput()
 
 
 class HasTextNode(QtGui.QGraphicsTextItem):
@@ -191,6 +214,7 @@ class HasNodeIOVar(QtGui.QGraphicsRectItem):
         setup_default_flags(self,
                             flags = QtGui.QGraphicsItem.ItemIsSelectable | \
                                     QtGui.QGraphicsItem.ItemIsFocusable)
+                            
 
     def addInput(self):
         return self.parentItem().addInput()

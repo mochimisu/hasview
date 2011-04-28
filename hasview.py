@@ -36,8 +36,12 @@ class MainBox(QtGui.QMainWindow):
 
         addHasScriptNode = QtGui.QAction('Add Haskell Script Node', self)
         addHasScriptNode.setShortcut('Ctrl+Shift+N')
-        addHasScriptNode.setStatusTip('Add a new node')
+        addHasScriptNode.setStatusTip('Add a new Haskell Script node')
         self.connect(addHasScriptNode, QtCore.SIGNAL('triggered()'), self.nodeArea.addHasScriptNode)
+
+        addConstantNode = QtGui.QAction('Add Constant Node', self)
+        addConstantNode.setStatusTip('Add a new Constant Script node')
+        self.connect(addConstantNode, QtCore.SIGNAL('triggered()'), self.nodeArea.addConstantNode)
 
         addInput = QtGui.QAction('Add Input', self)
         addInput.setStatusTip('Add an input to selected node')
@@ -61,12 +65,14 @@ class MainBox(QtGui.QMainWindow):
 
         menuNode = menubar.addMenu('&Node')
         menuNode.addAction(addHasScriptNode)
+        menuNode.addAction(addConstantNode)
         menuNode.addAction(addInput)
         menuNode.addAction(addOutput)
         
 
         toolbar = self.addToolBar('Toolbar') #[bmw] make a new toolbar
-        toolbar.addAction(addHasScriptNode) 
+        toolbar.addAction(addHasScriptNode)
+        toolbar.addAction(addConstantNode)
         toolbar.addAction(addInput)
         toolbar.addAction(addOutput)
 
