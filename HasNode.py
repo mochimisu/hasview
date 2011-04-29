@@ -65,6 +65,8 @@ class NodeArea(QtGui.QGraphicsScene):
             #sometimes segfaults and i dont know why
             HasNodeIOVar.current_line.scene().removeItem(HasNodeIOVar.current_line)
             HasNodeIOVar.current_line = None
+        else:
+            super(NodeArea, self).keyPressEvent(event)
 
 
 def setup_default_flags(item,
