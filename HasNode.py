@@ -118,6 +118,7 @@ def reassign_p2(line_ref, new_p2):
 
 class HasLine(QtGui.QGraphicsLineItem):
     """HasLine -- a line from a source to a sink that resizes itself."""
+    """Source(old node's input): P1 --> Sink(target node's input): P2"""
     def __init__(self, line, parent=None):
         super(HasLine, self).__init__(line, parent)
         self.source = None
