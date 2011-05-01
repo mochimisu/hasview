@@ -57,7 +57,12 @@ class NodeArea(QtGui.QGraphicsScene):
     def serializeCurrent(self):
         """serializes currently selected node"""
         if self.focusItem():
-            print self.focusItem().serialize()
+            #TODO: move this somewhere else (i put this here just to make it show for now)
+            msgBox = QtGui.QMessageBox()
+            msgBox.setText(self.focusItem().serialize())
+            #quick hackery to use setDetails for a copy-able compiled thing
+            msgBox.setDetailedText(self.focusItem().serialize())
+            msgBox.exec_()
         else:
             self.viewer.parent().statusBar().showMessage("Cannot compile: no selected node!")
 
