@@ -43,6 +43,10 @@ class MainBox(QtGui.QMainWindow):
         addConstantNode.setStatusTip('Add a new Constant Script node')
         self.connect(addConstantNode, QtCore.SIGNAL('triggered()'), self.nodeArea.addConstantNode)
 
+        addNamedFunctionNode = QtGui.QAction('Add Named Function Node', self)
+        addNamedFunctionNode.setStatusTip('Add a new Named Function node')
+        self.connect(addNamedFunctionNode, QtCore.SIGNAL('triggered()'), self.nodeArea.addNamedFunctionNode)
+
         addInput = QtGui.QAction('Add Input', self)
         addInput.setStatusTip('Add an input to selected node')
         self.connect(addInput, QtCore.SIGNAL('triggered()'), self.nodeArea.addInput)
@@ -50,6 +54,10 @@ class MainBox(QtGui.QMainWindow):
         addOutput = QtGui.QAction('Add Output', self)
         addOutput.setStatusTip('Add an output to selected node')
         self.connect(addOutput, QtCore.SIGNAL('triggered()'), self.nodeArea.addOutput)
+
+        comp = QtGui.QAction('"Compile"', self)
+        comp.setStatusTip('Show equivalent Haskell code for selected node')
+        self.connect(comp, QtCore.SIGNAL('triggered()'), self.nodeArea.serializeCurrent)
 
         #exit = QtGui.QAction(QtGui.QIcon('x.png'), 'Exit', self) #[bmw] set exit action, assign an image to it
         exit = QtGui.QAction('Exit', self) #[bmw] set exit action, assign an image to it
@@ -63,18 +71,25 @@ class MainBox(QtGui.QMainWindow):
         menuFile = menubar.addMenu('&File') #[bmw] add a new menu
         menuFile.addAction(exit) #[bmw] add exit to that menu
 
-        menuNode = menubar.addMenu('&Node')
-        menuNode.addAction(addHasScriptNode)
-        menuNode.addAction(addConstantNode)
-        menuNode.addAction(addInput)
-        menuNode.addAction(addOutput)
+        addNodeMenu = menubar.addMenu('&Add Node')
+        addNodeMenu.addAction(addHasScriptNode)
+        addNodeMenu.addAction(addConstantNode)
+        addNodeMenu.addAction(addNamedFunctionNode)
+
+        modifyNodeMenu = menubar.addMenu('&Modify Node')
+        modifyNodeMenu.addAction(addInput)
+        modifyNodeMenu.addAction(addOutput)
+
+        runNodeMenu = menubar.addMenu('&Run Node')
+        runNodeMenu.addAction(comp)
         
 
         toolbar = self.addToolBar('Toolbar') #[bmw] make a new toolbar
-        toolbar.addAction(addHasScriptNode)
-        toolbar.addAction(addConstantNode)
+        #toolbar.addAction(addHasScriptNode)
+        #toolbar.addAction(addConstantNode)
         toolbar.addAction(addInput)
         toolbar.addAction(addOutput)
+        toolbar.addAction(comp)
 
         self.raise_() #[bmw] grab focus on creation
 

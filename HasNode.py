@@ -35,6 +35,11 @@ class NodeArea(QtGui.QGraphicsScene):
         newNode = ConstantNode(self)
         self.addExistingNode(newNode)
 
+    def addNamedFunctionNode(self):
+        """better way to do this than to make 1000 functions?"""
+        newNode = NamedFunctionNode(self)
+        self.addExistingNode(newNode)
+
     def addInput(self):
         """[bmw] adds an input box to the node with focus."""
         if self.focusItem():
@@ -49,6 +54,13 @@ class NodeArea(QtGui.QGraphicsScene):
         else:
             self.viewer.parent().statusBar().showMessage("Cannot add output: no selected node!")
 
+    def serializeCurrent(self):
+        """serializes currently selected node"""
+        if self.focusItem():
+            print self.focusItem().serialize()
+        else:
+            self.viewer.parent().statusBar().showMessage("Cannot compile: no selected node!")
+
     def mouseMoveEvent(self, event):
         """mouse movement of node area. super() call allows to drag boxes around, and the rest allows to display lines after an iovar was selected """
         super(NodeArea, self).mouseMoveEvent(event)
@@ -62,6 +74,10 @@ class NodeArea(QtGui.QGraphicsScene):
 
     def keyPressEvent(self, event):
         if event.key() == QtCore.Qt.Key_Escape and HasNodeIOVar.current_line is not None: #i think we need ==? not sure
+            if HasNodeIOVar.current_line.source is not None:
+                HasNodeIOVar.current_line.source.links.remove(HasNodeIOVar.current_line)
+            if HasNodeIOVar.current_line.sink is not None:
+                HasNodeIOVar.current_line.sink.links.remove(HasNodeIOVar.current_line)
             #sometimes segfaults and i dont know why
             HasNodeIOVar.current_line.scene().removeItem(HasNodeIOVar.current_line)
             HasNodeIOVar.current_line = None
@@ -105,9 +121,12 @@ class HasLine(QtGui.QGraphicsLineItem):
 
     def setSource(self, source):
         self.source = source
+        #TODO: check for previous source/sink and remove if reassigned
+        source.links.append(self)
 
     def setSink(self, sink):
         self.sink = sink
+        sink.links.append(self)
 
     def paint(self, painter, option, widget=None):
         """Ensure that the line is still accurate. If not: redraw appropriately."""
@@ -126,7 +145,7 @@ class HasLine(QtGui.QGraphicsLineItem):
 
     def updateCubic(self): #i think theres a better way to do this....
         self.cubicPath = QtGui.QPainterPath(self.line().p1())
-        self.cubicPath.cubicTo(self.line().p1() + QtCore.QPointF(-100,-100),self.line().p2() + QtCore.QPointF(100,100),self.line().p2())
+        self.cubicPath.cubicTo(self.line().p1() + QtCore.QPointF(100,100),self.line().p2() + QtCore.QPointF(-100,-100),self.line().p2())
     
     def boundingRect(self):
         return self.cubicPath.boundingRect()
@@ -160,13 +179,21 @@ class BaseNode(QtGui.QGraphicsItemGroup):
         new_output = HasNodeOutput(len(self.outputs), parent=self)
         self.outputs.append(new_output)
 
+    def serialize(self): #take inputs as list of arguments in order
+        #inputs should only have one connecting source [check for this?]
+
+        #default actuion is to just use the first input as output (no checks yet, just trying to get method down)
+        firstInputVar = self.inputs[0].name
+        firstOutputVar = self.outputs[0].name
+        return firstOutputVar + " = " + firstInputVar
+        
 
 class HasScriptNode(BaseNode):
     """Haskell Script Node -- contains haskell code, the equivalent of MathScript nodes in LabView."""
     def __init__(self, parent=None):
         super(HasScriptNode, self).__init__()
 
-        text = HasTextNode("Enter Text Here")
+        text = QtGui.QGraphicsTextItem("Enter Text Here")
         text_flags = QtCore.Qt.TextEditorInteraction
         text.setTextInteractionFlags(text_flags)
         self.addToGroup(text)
@@ -185,15 +212,44 @@ class ConstantNode(BaseNode):
         self.frameRect.setRect(QtCore.QRectF(self.x(), self.y(), 125, 25))
         self.addToGroup(self.frameRect)
 
-        text = HasTextNode("Variable Name")
+        self.text = QtGui.QGraphicsTextItem("Constant")
         text_flags = QtCore.Qt.TextEditorInteraction
-        text.setTextInteractionFlags(text_flags)
-        self.addToGroup(text)
+        self.text.setTextInteractionFlags(text_flags)
+        self.addToGroup(self.text)
+        
+        setup_default_flags(self)
+
+        self.addOutput()
+    
+    def serialize(self): #ex: 2 (is this same thing as namedfunction with no input?)
+        return self.text.toPlainText()
+
+class NamedFunctionNode(BaseNode):
+    """Named function"""
+    def __init__(self, parent=None):
+        super(NamedFunctionNode, self).__init__()
+
+        self.removeFromGroup(self.frameRect)
+        self.frameRect.setRect(QtCore.QRectF(self.x(), self.y(), 125, 25))
+        self.addToGroup(self.frameRect)
+
+        self.text = QtGui.QGraphicsTextItem("Function Name")
+        text_flags = QtCore.Qt.TextEditorInteraction
+        self.text.setTextInteractionFlags(text_flags)
+        self.addToGroup(self.text)
         
         setup_default_flags(self)
 
         self.addOutput()
 
+    def serialize(self): #ex: foo a b
+        outputString = ""
+        funcCall = self.text.toPlainText()
+        for inp in self.inputs:
+            outputString += inp.name + " = " + inp.links[0].source.parentItem().serialize() + "\n"
+            funcCall += " " + inp.name
+        outputString += funcCall
+        return outputString
 
 class HasTextNode(QtGui.QGraphicsTextItem):
     """Wrapper around QGraphicsTextItem. Will be edited to have syntax highlighting."""
@@ -210,13 +266,16 @@ class HasTextNode(QtGui.QGraphicsTextItem):
 class HasNodeIOVar(QtGui.QGraphicsRectItem):
     """Basic IO box for nodes."""
     current_line = None
+    idCounter = 0
 
     def __init__(self, parent=None):
         super(HasNodeIOVar, self).__init__(parent)
         setup_default_flags(self,
                             flags = QtGui.QGraphicsItem.ItemIsSelectable | \
                                     QtGui.QGraphicsItem.ItemIsFocusable)
-                            
+        self.links = []
+        self.name = "x"+str(HasNodeIOVar.idCounter)
+        HasNodeIOVar.idCounter = HasNodeIOVar.idCounter + 1
 
     def addInput(self):
         return self.parentItem().addInput()
@@ -236,15 +295,15 @@ class HasNodeInput(HasNodeIOVar):
 
     def mouseDoubleClickEvent(self, event):
         if HasNodeIOVar.current_line is not None:
-            if HasNodeIOVar.current_line.source is None:
+            if HasNodeIOVar.current_line.sink is None:
                 reassign_p1(HasNodeIOVar.current_line,
                             self.mapToScene(self.rect().center()))
-                HasNodeIOVar.current_line.setSource(self)
+                HasNodeIOVar.current_line.setSink(self)
                 HasNodeIOVar.current_line = None
         else:
             HasNodeIOVar.current_line = HasLine(QtCore.QLineF(self.mapToScene(self.rect().center()),
                                                           self.mapToScene(self.rect().center())))
-            HasNodeIOVar.current_line.setSource(self)
+            HasNodeIOVar.current_line.setSink(self)
             self.scene().addItem(HasNodeIOVar.current_line)
 
 
@@ -259,15 +318,15 @@ class HasNodeOutput(HasNodeIOVar):
 
     def mouseDoubleClickEvent(self, event):
         if HasNodeIOVar.current_line is not None:
-            if HasNodeIOVar.current_line.sink is None:
+            if HasNodeIOVar.current_line.source is None:
                 reassign_p2(HasNodeIOVar.current_line,
                             self.mapToScene(self.rect().center()))
-                HasNodeIOVar.current_line.setSink(self)
+                HasNodeIOVar.current_line.setSource(self)
                 HasNodeIOVar.current_line = None
         else:
             HasNodeIOVar.current_line = HasLine(QtCore.QLineF(self.mapToScene(self.rect().center()),
                                                               self.mapToScene(self.rect().center())))
-            HasNodeIOVar.current_line.setSink(self)
+            HasNodeIOVar.current_line.setSource(self)
             self.scene().addItem(HasNodeIOVar.current_line)
 
 
