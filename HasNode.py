@@ -12,33 +12,33 @@ class NodeArea(QtGui.QGraphicsScene):
 
         self.viewer = QtGui.QGraphicsView(self)
 
-    def addExistingNode(self, node):
+    def addNodeByClass(self, nodeType):
         """Adds a GraphicsItem to our scene and gives it focus"""
+        newNodeParent = self
+        if self.focusItem():
+            newNodeParent = self.focusItem()
+        node = nodeType(newNodeParent)
         self.addItem(node)
         self.setFocusItem(node)
 
     def addNode(self):
         """[bmw] interface to outside to add a basic node."""
-        newNode = BaseNode(self)
-        self.addExistingNode(newNode)
+        self.addNodeByClass(BaseNode)
 
     def addHasScriptNode(self):
         """A HasScriptNode will be added and given focus
         HasScriptNode supports input / output links
 
         """
-        newNode = HasScriptNode(self)
-        self.addExistingNode(newNode)
+        self.addNodeByClass(HasScriptNode)
 
     def addConstantNode(self):
         """better way to do this than to make 1000 functions?"""
-        newNode = ConstantNode(self)
-        self.addExistingNode(newNode)
+        self.addNodeByClass(ConstantNode)
 
     def addNamedFunctionNode(self):
         """better way to do this than to make 1000 functions?"""
-        newNode = NamedFunctionNode(self)
-        self.addExistingNode(newNode)
+        self.addNodeByClass(NamedFunctionNode)
 
     def addInput(self):
         """[bmw] adds an input box to the node with focus."""
