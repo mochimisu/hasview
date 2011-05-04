@@ -50,7 +50,7 @@ class MainBox(QtGui.QMainWindow):
         self.connect(addNamedFunctionNode, QtCore.SIGNAL('triggered()'), self.nodeArea.addNamedFunctionNode)
 
         addContainerNode = QtGui.QAction('Add Container Node', self)
-        addContainerNode.setShortcut('Ctrl+Shift+O')
+        addContainerNode.setShortcut('Ctrl+Shift+R')
         addContainerNode.setStatusTip('add a new Container Node')
         self.connect(addContainerNode, QtCore.SIGNAL('triggered()'), self.nodeArea.addContainerNode)
 

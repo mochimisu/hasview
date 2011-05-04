@@ -63,9 +63,9 @@ class NodeArea(QtGui.QGraphicsScene):
         if self.focusItem():
             #TODO: move this somewhere else (i put this here just to make it show for now)
             msgBox = QtGui.QMessageBox()
-            outputText = self.focusItem().serialize()
-            if outputText is None:
-                outputText = self.focusItem().resolve()
+            outputText = self.focusItem().serializeToString()
+            if outputText == "":
+                outputText = self.focusItem().resolveToString()
             msgBox.setText(outputText)
             #quick hackery to use setDetails for a copy-able compiled thing
             msgBox.setDetailedText(outputText)
@@ -138,7 +138,7 @@ class HasLine(QtGui.QGraphicsLineItem):
         self.source = None
         self.sink = None
         self.cubicPath = QtGui.QPainterPath()
-        self.name = link + str(idCounter)
+        self.name = "link" + str(HasLine.idCounter)
         HasLine.idCounter += 1
 
     def setSource(self, source):
@@ -195,7 +195,7 @@ class BaseNode(QtGui.QGraphicsItemGroup):
 
         # if we want syntax highlighting for Haskell Nodes s/QLabel/QTextEdit
         # and subclass QSyntaxHighlighter
-        self.name = "y" + str(BaseNode.idCounter)
+        self.name = "n" + str(BaseNode.idCounter)
         BaseNode.idCounter += 1
 
     def addInput(self):
@@ -206,53 +206,136 @@ class BaseNode(QtGui.QGraphicsItemGroup):
         new_output = HasNodeOutput(len(self.outputs), parent=self)
         self.outputs.append(new_output)
 
-
     def serialize(self):
         """Serialization is the function definition/instantiation"""
+        #Returns (name, args, body) {None means that this node needs no special naming or whatever}
+        #name is named binding
+        #args is list of args of function (None for no args)
+        #body is in the format:
+        # [ (let, resolutions {is a list}),
+        #   (in, [list of variables]),
+        #   (where, resolutions) ]
+
+        # body can be 
+        # [ (haskell, HASKELL STRING) ]
+        # for hasNodes
         return None
 
     def resolve(self):
         """Resolution is the actual function call"""
-        #take inputs as list of arguments in order
-        #inputs should only have one connecting source [check for this?]
+        #Returns [ ([list of vars], resolution binding statement) ]
+        #Ex: [ ([a,b,c], foo a),
+        #      ([d], bar b) ]
+        # is equal to:
+        # (a,b,c) = foo a
+        # d       = bar b
 
-        #default actuion is to just use the first input as output (no checks yet, just trying to get method down)
         firstInputVar = self.inputs[0].name
         firstOutputVar = self.outputs[0].name
-        return firstOutputVar + " = " + firstInputVar
+        return [([firstOutputVar], firstInputVar)]
+
+    #sorry for the following mess....
+    def resolveToString(self):
+        resolved = self.resolve()
+        if resolved is None:
+            return ""
+        outputString = ""
+        for resolution in resolved:
+            outputString += self.singleResolutionToString(resolution)
+        return outputString
+
+    def listOfVarsToString(self,lsOfVar):
+        outputString = ""
+        if len(lsOfVar) > 1:
+            return "(" + reduce(lambda x,y: x + ", " + y, lsOfVar) + ")"
+        elif len(lsOfVar) == 1:
+            return lsOfVar[0]
+        else:
+            return ""
+
+    def singleResolutionToString(self,resolution):
+        print resolution
+        return self.listOfVarsToString(resolution[0]) + " = " + resolution[1]
+
+    def serializeToString(self):
+        serialized = self.serialize()
+        print serialized
+        if serialized is None:
+            return ""
+        outputString = ""
+        curSpaces = 0
+        
+        outputString += serialized[0]
+        if serialized[1] is not None:
+            outputString += " " + reduce(lambda x,y: x + " " + y, serialized[1], "")
+        outputString += " = "
+        curSpaces = len(outputString)
+        for body in serialized[2]:
+            if body[0] == "let":
+                curSpaces += 4
+                outputString += body[0] + " "
+                first = True
+                for resolution in body[1]:
+                    if not first:
+                        outputString += " " * curSpaces
+                        first = False
+                    outputString += self.singleResolutionToString(resolution) + "\n"
+                curSpaces -= 4
+            elif body[0] == "in":
+                outputString += " " * curSpaces
+                outputString += body[0] + " " + self.listOfVarsToString(body[1]) + "\n"
+            elif body[0] == "where":
+                outputString += " " * curSpaces
+                outputString += body[0] + " "
+                first = True
+                for resolution in body[1]:
+                    if not first:
+                        outputString += " " * curSpaces
+                    outputString += self.singleResolutionToString(resolution) + "\n"
+            elif body[0] == "haskell":
+                outputString += body[1] + "\n"
+            else:
+                outputString += " " * curSpaces
+                outputString += body[0] + " " + body[1]
+        return outputString
+
 
     def mouseClickEvent(self, event):
-
         super(BaseNode, self).mouseClickEvent(event)
 
 class ContainerNode(BaseNode):
     def __init__(self, parent=None):
         super(ContainerNode, self).__init__(parent)
         self.canHoldStuff = True
+        self.inputTunnel = []
+        self.outputTunnel = []
     
     def addInput(self):
-        outerInput = HasNodeInput(len(self.inputs), parent=self)
-        innerInput = HasNodeInputInner(len(self.inputs), parent=self)
-        self.inputs.append(ContainerIOVar(innerInput, outerInput))
+        outerInput = HasNodeInput(len(self.inputTunnel), parent=self)
+        innerInput = HasNodeInputInner(len(self.inputTunnel), parent=self)
+        self.inputTunnel.append(ContainerIOVar(innerInput, outerInput))
+        self.inputs.append(outerInput)
 
     def addOutput(self):
-        outerOutput = HasNodeOutput(len(self.outputs), parent=self)
-        innerOutput = HasNodeOutputInner(len(self.outputs), parent=self)
-        self.outputs.append(ContainerIOVar(innerOutput, outerOutput))
+        outerOutput = HasNodeOutput(len(self.outputTunnel), parent=self)
+        innerOutput = HasNodeOutputInner(len(self.outputTunnel), parent=self)
+        self.outputTunnel.append(ContainerIOVar(innerOutput, outerOutput))
+        self.outputs.append(outerOutput)
 
     def resolve(self):
+        #returns list of (list of bindings, resolution for binding)
         #calling of the function: out = foo in
         outVars = []
         inVars = []
 
         #grab names of outer output links
-        for outp in self.outputs:
+        for outp in self.outputTunnel:
             links = outp.outer.links
             for link in links:
                 outVars.append(link.name)
 
         #and grab names of outer input links
-        for inp in self.inputs:
+        for inp in self.inputTunnel:
             links = inp.outer.links
             for link in links:
                 inVars.append(link.name)
@@ -261,23 +344,61 @@ class ContainerNode(BaseNode):
         functionCall = self.name + " "
         functionCall += reduce(lambda x,y: x + " " + y, inVars) 
 
-        #output is a little trickier
-        outputString = ""
-        if len(outVars) > 0:
-            bindings = "(" + reduce(lambda x,y: x + ", " +y, outVars)
-            outputString = bindings + " = " + functionCall
-        else:
-            outputString = functionCall
-
-        return outputString
-
+        return [(outVars, functionCall)]
         
     def serialize(self): 
-        print "something"
+        #go backwards from outputs
+        inVars = []
+        outVars = []
+        duplResolutions = []
+        resolutions = []
+        body = []
+
+        #find inputs
+        inVars = map(lambda inTun: inTun.inner.name, self.inputTunnel)
+
+        #add link name resolution from inputs (multiple wires from input)
+        for inp in map(lambda inTun: inTun.inner, self.inputTunnel):
+            for link in inp.links:
+                resolutions.append(([link.name], inp.name))
+        
+        #find outputs and resolutions
+        for out in self.outputTunnel:
+            curLink = out.inner.links[0] #current link connected to output node
+            outVars.append(curLink.name) #we want this to be one of our tuple'd outputs
+            duplResolutions.extend(self.resolveUntilInput(curLink.source)) #recursively call link until it is at an input
+    
+        #get rid of duplicates
+        for resolution in duplResolutions:
+            if resolution[0] not in map(lambda rs: rs[0], resolutions):
+                resolutions.append(resolution)
+
+        #[add serializations here]
+
+        body.append(("let", resolutions))
+        body.append(("in", outVars))
+        
+        return (self.name, inVars, body)
+
+    def resolveUntilInput(self, sourceVar):
+        #recursion from link until input link, using source output IOVar
+        
+        if sourceVar in map(lambda inp: inp.inner, self.inputs):
+            return []
+
+        curNode = sourceVar.parentItem()
+        curList = []
+
+        for output in curNode.outputs:
+            for link in output.links:
+                curList.extend(curNode.resolve())
+        for link in curNode.inputs:
+            curList.extend(self.resolveUntilFront(link.source))
+
+        return curList
 
 
-
-class HasScriptNode(BaseNode):
+class HasScriptNode(ContainerNode):
     """Haskell Script Node -- contains haskell code, the equivalent of MathScript nodes in LabView."""
     def __init__(self, parent=None):
         super(HasScriptNode, self).__init__(parent)
@@ -293,7 +414,9 @@ class HasScriptNode(BaseNode):
         setup_default_flags(self)
 
     def serialize(self):
-        return self.text.toPlainText()
+        inVars = map(lambda inTun: inTun.inner.name, self.inputTunnel)
+        return (self.name, inVars, [("haskell",self.text.toPlainText())])
+
 
 class ConstantNode(BaseNode):
     """Constant value used as an output only"""
@@ -314,7 +437,11 @@ class ConstantNode(BaseNode):
         self.addOutput()
     
     def resolve(self): #ex: 2 (is this same thing as namedfunction with no input?)
-        return self.text.toPlainText()
+        resolutions = []
+        for output in self.outputs:
+            for link in output.links:
+                resolutions.append(([link.name], self.text.toPlainText()))
+        return resolutions
 
 class NamedFunctionNode(BaseNode):
     """Named function"""
@@ -341,7 +468,14 @@ class NamedFunctionNode(BaseNode):
             outputString += inp.name + " = " + inp.links[0].source.parentItem().serialize() + "\n"
             funcCall += " " + inp.name
         outputString += funcCall
-        return outputString
+
+        resolutions = []
+        for output in self.outputs:
+            for link in output.links:
+                resolutions.append(([link.name], outputString))
+
+
+        return resolutions
 
 class HasTextNode(QtGui.QGraphicsTextItem):
     """Wrapper around QGraphicsTextItem. Will be edited to have syntax highlighting."""
