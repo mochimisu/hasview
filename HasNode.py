@@ -99,7 +99,6 @@ class NodeArea(QtGui.QGraphicsScene):
         else:
             super(NodeArea, self).keyPressEvent(event)
 
-
 def setup_default_flags(item,
                         flags = QtGui.QGraphicsItem.ItemIsMovable    | \
                                 QtGui.QGraphicsItem.ItemIsSelectable | \
@@ -302,6 +301,22 @@ class BaseNode(QtGui.QGraphicsItemGroup):
 
     def mouseClickEvent(self, event):
         super(BaseNode, self).mouseClickEvent(event)
+
+    def focusInEvent(self, event):
+        super(BaseNode, self).focusInEvent(event) 
+
+    def focusOutEvent(self, event):
+        super(BaseNode, self).focusOutEvent(event)
+
+    def paint(self, qp, opt, widget):
+        super(BaseNode, self).paint(qp,opt,widget)
+        if(self.hasFocus()):
+            newPen = QtGui.QPen(qp.pen())
+            newPen.setWidth(3)
+            qp.setPen(newPen)
+            qp.drawRect(self.frameRect.rect())
+
+
 
 class ContainerNode(BaseNode):
     def __init__(self, parent=None):
