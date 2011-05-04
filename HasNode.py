@@ -162,6 +162,8 @@ class HasLine(QtGui.QGraphicsLineItem):
 
 
 class BaseNode(QtGui.QGraphicsItemGroup):
+    idCounter = 0
+    intermediateIdCounter = 0
     """Basic Node -- a node can have inputs and outputs, and contains items."""
     def __init__(self, parent=None):
         super(BaseNode, self).__init__(parent)
@@ -181,6 +183,8 @@ class BaseNode(QtGui.QGraphicsItemGroup):
 
         # if we want syntax highlighting for Haskell Nodes s/QLabel/QTextEdit
         # and subclass QSyntaxHighlighter
+        self.name = "y" + str(BaseNode.idCounter)
+        BaseNode.idCounter += 1
 
     def addInput(self):
         new_input = HasNodeInput(len(self.inputs), parent=self)
@@ -216,6 +220,25 @@ class ContainerNode(BaseNode):
         outerOutput = HasNodeOutput(len(self.outputs), parent=self)
         innerOutput = HasNodeOutputInner(len(self.outputs), parent=self)
         self.outputs.append(ContainerIOVar(innerOutput, outerOutput))
+
+    def serialization(self):
+        """
+        output = ""
+        #Outputs are stored as Let [tempvar] = ..., and output as a tuple (or list? which is better?) of these tempvars 
+        letStrs = []
+        outputVars = []
+        #wait how do tabs work? fff
+        for output in self.outputs:
+            varName = "z" + str(BaseNode.intermediateIdConter)
+            BaseNode.intermediateIdCounter += 1
+            letStrs.append(varName + " = " + output.inner.links[0].source.parentItem().serialize())
+            outputVars.append(varName)
+        output = name + " "
+        for inp in self.inputs:
+            output += inp.inner.name
+            """
+        
+
 
 
 class HasScriptNode(BaseNode):
