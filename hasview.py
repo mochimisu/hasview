@@ -47,6 +47,10 @@ class MainBox(QtGui.QMainWindow):
         addNamedFunctionNode.setStatusTip('Add a new Named Function node')
         self.connect(addNamedFunctionNode, QtCore.SIGNAL('triggered()'), self.nodeArea.addNamedFunctionNode)
 
+        addContainerNode = QtGui.QAction('Add Container Node', self)
+        addContainerNode.setStatusTip('add a new Container Node')
+        self.connect(addContainerNode, QtCore.SIGNAL('triggered()'), self.nodeArea.addContainerNode)
+
         addInput = QtGui.QAction('Add Input', self)
         addInput.setStatusTip('Add an input to selected node')
         self.connect(addInput, QtCore.SIGNAL('triggered()'), self.nodeArea.addInput)
@@ -75,6 +79,7 @@ class MainBox(QtGui.QMainWindow):
         addNodeMenu.addAction(addHasScriptNode)
         addNodeMenu.addAction(addConstantNode)
         addNodeMenu.addAction(addNamedFunctionNode)
+        addNodeMenu.addAction(addContainerNode)
 
         modifyNodeMenu = menubar.addMenu('&Modify Node')
         modifyNodeMenu.addAction(addInput)

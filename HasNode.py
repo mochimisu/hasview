@@ -14,12 +14,13 @@ class NodeArea(QtGui.QGraphicsScene):
 
     def addNodeByClass(self, nodeType):
         """Adds a GraphicsItem to our scene and gives it focus"""
-        newNodeParent = self
-        if self.focusItem():
-            newNodeParent = self.focusItem()
-        node = nodeType(newNodeParent)
-        self.addItem(node)
-        self.setFocusItem(node)
+        if self.focusItem() and self.focusItem().canHoldStuff:
+            #Apparently when called with a non-None parent, it adds itself to the scene...
+            node = nodeType(self.focusItem())
+        else:
+            node = nodeType(None)
+            self.addItem(node)
+            self.setFocusItem(node)
 
     def addNode(self):
         """[bmw] interface to outside to add a basic node."""
@@ -39,6 +40,9 @@ class NodeArea(QtGui.QGraphicsScene):
     def addNamedFunctionNode(self):
         """better way to do this than to make 1000 functions?"""
         self.addNodeByClass(NamedFunctionNode)
+
+    def addContainerNode(self):
+        self.addNodeByClass(ContainerNode)
 
     def addInput(self):
         """[bmw] adds an input box to the node with focus."""
@@ -164,6 +168,7 @@ class BaseNode(QtGui.QGraphicsItemGroup):
 
         self.inputs = []  #[bmw] lists to contain inputs and outputs
         self.outputs = []
+        self.canHoldStuff = False #[bmw] to say that it cant hold nodes
 
         setup_default_flags(self)
 
@@ -192,12 +197,31 @@ class BaseNode(QtGui.QGraphicsItemGroup):
         firstInputVar = self.inputs[0].name
         firstOutputVar = self.outputs[0].name
         return firstOutputVar + " = " + firstInputVar
-        
+
+    def mouseClickEvent(self, event):
+
+        super(BaseNode, self).mouseClickEvent(event)
+
+class ContainerNode(BaseNode):
+    def __init__(self, parent=None):
+        super(ContainerNode, self).__init__(parent)
+        self.canHoldStuff = True
+    
+    def addInput(self):
+        outerInput = HasNodeInput(len(self.inputs), parent=self)
+        innerInput = HasNodeInputInner(len(self.inputs), parent=self)
+        self.inputs.append(ContainerIOVar(innerInput, outerInput))
+
+    def addOutput(self):
+        outerOutput = HasNodeOutput(len(self.outputs), parent=self)
+        innerOutput = HasNodeOutputInner(len(self.outputs), parent=self)
+        self.outputs.append(ContainerIOVar(innerOutput, outerOutput))
+
 
 class HasScriptNode(BaseNode):
     """Haskell Script Node -- contains haskell code, the equivalent of MathScript nodes in LabView."""
     def __init__(self, parent=None):
-        super(HasScriptNode, self).__init__()
+        super(HasScriptNode, self).__init__(parent)
 
         text = QtGui.QGraphicsTextItem("Enter Text Here")
         text_flags = QtCore.Qt.TextEditorInteraction
@@ -212,7 +236,7 @@ class HasScriptNode(BaseNode):
 class ConstantNode(BaseNode):
     """Constant value used as an output only"""
     def __init__(self, parent=None):
-        super(ConstantNode, self).__init__()
+        super(ConstantNode, self).__init__(parent)
 
         self.removeFromGroup(self.frameRect)
         self.frameRect.setRect(QtCore.QRectF(self.x(), self.y(), 125, 25))
@@ -233,7 +257,7 @@ class ConstantNode(BaseNode):
 class NamedFunctionNode(BaseNode):
     """Named function"""
     def __init__(self, parent=None):
-        super(NamedFunctionNode, self).__init__()
+        super(NamedFunctionNode, self).__init__(parent)
 
         self.removeFromGroup(self.frameRect)
         self.frameRect.setRect(QtCore.QRectF(self.x(), self.y(), 125, 25))
@@ -294,8 +318,8 @@ class HasNodeInput(HasNodeIOVar):
     """Input box for nodes -- will be placed on the left of a node"""
     def __init__(self, num_prev_inputs, parent=None):
         super(HasNodeInput, self).__init__(parent)
-        self.setRect(-20,                   # place on left side
-                     20 * num_prev_inputs,  # account for earlier inputs
+        self.setRect(-20 + self.parentItem().boundingRect().x(),                   # place on left side
+                     20 * num_prev_inputs +  + self.parentItem().boundingRect().y(),  # account for earlier inputs
                      20,                    # 20x20 is a reasonable box size
                      20)
 
@@ -318,7 +342,7 @@ class HasNodeOutput(HasNodeIOVar):
     def __init__(self, num_prev_outputs, parent=None):
         super(HasNodeOutput, self).__init__(parent)
         self.setRect(self.parentItem().boundingRect().topRight().x(),   # find the right index to use [haha]
-                     20 * num_prev_outputs,                             # account for earlier inputs
+                     20 * num_prev_outputs + self.parentItem().boundingRect().topRight().y(),                             # account for earlier inputs
                      20,
                      20)
 
@@ -335,6 +359,28 @@ class HasNodeOutput(HasNodeIOVar):
             HasNodeIOVar.current_line.setSource(self)
             self.scene().addItem(HasNodeIOVar.current_line)
 
+class HasNodeInputInner(HasNodeOutput):
+    def __init__(self, num_prev_inputs, parent=None):
+        super(HasNodeInputInner, self).__init__(num_prev_inputs, parent)
+        self.setRect(0, 
+                     20 * num_prev_inputs,
+                     20,
+                     20)
+
+class HasNodeOutputInner(HasNodeInput):
+    def __init__(self, num_prev_outputs, parent=None):
+        super(HasNodeOutputInner, self).__init__(num_prev_outputs, parent)
+        self.setRect(self.parentItem().boundingRect().topRight().x() - 20,
+                     20 * num_prev_outputs,
+                     20,
+                     20)
+
+class ContainerIOVar: 
+    #contains both container "input" and "output": makes a tunnel
+    def __init__(self, inner, outer):
+        self.inner = inner
+        self.outer = outer
+    
 
 class HasHighlighter(QtGui.QSyntaxHighlighter):
     """Defining syntax highlighting schemas for Haskell"""
