@@ -63,12 +63,18 @@ class NodeArea(QtGui.QGraphicsScene):
         if self.focusItem():
             #TODO: move this somewhere else (i put this here just to make it show for now)
             msgBox = QtGui.QMessageBox()
-            msgBox.setText(self.focusItem().serialize())
+            outputText = self.focusItem().serialize()
+            if outputText is None:
+                outputText = self.focusItem().resolve()
+            msgBox.setText(outputText)
             #quick hackery to use setDetails for a copy-able compiled thing
-            msgBox.setDetailedText(self.focusItem().serialize())
+            msgBox.setDetailedText(outputText)
             msgBox.exec_()
         else:
-            self.viewer.parent().statusBar().showMessage("Cannot compile: no selected node!")
+            self.viewer.parent().statusBar().showMessage("Cannot serialize: no selected node!")
+
+    def comp(self):
+        print 'asdf'
 
     def mouseMoveEvent(self, event):
         """mouse movement of node area. super() call allows to drag boxes around, and the rest allows to display lines after an iovar was selected """
@@ -123,11 +129,17 @@ def reassign_p2(line_ref, new_p2):
 class HasLine(QtGui.QGraphicsLineItem):
     """HasLine -- a line from a source to a sink that resizes itself."""
     """Source(old node's input): P1 --> Sink(target node's input): P2"""
+
+    """Contains the variable name for linked boxes."""
+    idCounter = 0
+
     def __init__(self, line, parent=None):
         super(HasLine, self).__init__(line, parent)
         self.source = None
         self.sink = None
         self.cubicPath = QtGui.QPainterPath()
+        self.name = link + str(idCounter)
+        HasLine.idCounter += 1
 
     def setSource(self, source):
         self.source = source
@@ -194,7 +206,14 @@ class BaseNode(QtGui.QGraphicsItemGroup):
         new_output = HasNodeOutput(len(self.outputs), parent=self)
         self.outputs.append(new_output)
 
-    def serialize(self): #take inputs as list of arguments in order
+
+    def serialize(self):
+        """Serialization is the function definition/instantiation"""
+        return None
+
+    def resolve(self):
+        """Resolution is the actual function call"""
+        #take inputs as list of arguments in order
         #inputs should only have one connecting source [check for this?]
 
         #default actuion is to just use the first input as output (no checks yet, just trying to get method down)
@@ -221,23 +240,40 @@ class ContainerNode(BaseNode):
         innerOutput = HasNodeOutputInner(len(self.outputs), parent=self)
         self.outputs.append(ContainerIOVar(innerOutput, outerOutput))
 
-    def serialization(self):
-        """
-        output = ""
-        #Outputs are stored as Let [tempvar] = ..., and output as a tuple (or list? which is better?) of these tempvars 
-        letStrs = []
-        outputVars = []
-        #wait how do tabs work? fff
-        for output in self.outputs:
-            varName = "z" + str(BaseNode.intermediateIdConter)
-            BaseNode.intermediateIdCounter += 1
-            letStrs.append(varName + " = " + output.inner.links[0].source.parentItem().serialize())
-            outputVars.append(varName)
-        output = name + " "
+    def resolve(self):
+        #calling of the function: out = foo in
+        outVars = []
+        inVars = []
+
+        #grab names of outer output links
+        for outp in self.outputs:
+            links = outp.outer.links
+            for link in links:
+                outVars.append(link.name)
+
+        #and grab names of outer input links
         for inp in self.inputs:
-            output += inp.inner.name
-            """
+            links = inp.outer.links
+            for link in links:
+                inVars.append(link.name)
+
+        #and construct the string of the haskell equivalent
+        functionCall = self.name + " "
+        functionCall += reduce(lambda x,y: x + " " + y, inVars) 
+
+        #output is a little trickier
+        outputString = ""
+        if len(outVars) > 0:
+            bindings = "(" + reduce(lambda x,y: x + ", " +y, outVars)
+            outputString = bindings + " = " + functionCall
+        else:
+            outputString = functionCall
+
+        return outputString
+
         
+    def serialize(self): 
+        print "something"
 
 
 
@@ -246,15 +282,18 @@ class HasScriptNode(BaseNode):
     def __init__(self, parent=None):
         super(HasScriptNode, self).__init__(parent)
 
-        text = QtGui.QGraphicsTextItem("Enter Text Here")
+        self.text = QtGui.QGraphicsTextItem("Enter Text Here")
         text_flags = QtCore.Qt.TextEditorInteraction
-        text.setTextInteractionFlags(text_flags)
-        self.addToGroup(text)
+        self.text.setTextInteractionFlags(text_flags)
+        self.addToGroup(self.text)
 
         # syntax highlighting is fun! Have some for breakfast.
-        highlighter = HasHighlighter(text.document())
+        highlighter = HasHighlighter(self.text.document())
 
         setup_default_flags(self)
+
+    def serialize(self):
+        return self.text.toPlainText()
 
 class ConstantNode(BaseNode):
     """Constant value used as an output only"""
@@ -274,7 +313,7 @@ class ConstantNode(BaseNode):
 
         self.addOutput()
     
-    def serialize(self): #ex: 2 (is this same thing as namedfunction with no input?)
+    def resolve(self): #ex: 2 (is this same thing as namedfunction with no input?)
         return self.text.toPlainText()
 
 class NamedFunctionNode(BaseNode):
@@ -295,7 +334,7 @@ class NamedFunctionNode(BaseNode):
 
         self.addOutput()
 
-    def serialize(self): #ex: foo a b
+    def resolve(self): #ex: foo a b
         outputString = ""
         funcCall = self.text.toPlainText()
         for inp in self.inputs:

@@ -40,28 +40,40 @@ class MainBox(QtGui.QMainWindow):
         self.connect(addHasScriptNode, QtCore.SIGNAL('triggered()'), self.nodeArea.addHasScriptNode)
 
         addConstantNode = QtGui.QAction('Add Constant Node', self)
+        addConstantNode.setShortcut('Ctrl+Shift+C')
         addConstantNode.setStatusTip('Add a new Constant Script node')
         self.connect(addConstantNode, QtCore.SIGNAL('triggered()'), self.nodeArea.addConstantNode)
 
         addNamedFunctionNode = QtGui.QAction('Add Named Function Node', self)
+        addNamedFunctionNode.setShortcut('Ctrl+Shift+F')
         addNamedFunctionNode.setStatusTip('Add a new Named Function node')
         self.connect(addNamedFunctionNode, QtCore.SIGNAL('triggered()'), self.nodeArea.addNamedFunctionNode)
 
         addContainerNode = QtGui.QAction('Add Container Node', self)
+        addContainerNode.setShortcut('Ctrl+Shift+O')
         addContainerNode.setStatusTip('add a new Container Node')
         self.connect(addContainerNode, QtCore.SIGNAL('triggered()'), self.nodeArea.addContainerNode)
 
         addInput = QtGui.QAction('Add Input', self)
+        addInput.setShortcut('Ctrl+I')
         addInput.setStatusTip('Add an input to selected node')
         self.connect(addInput, QtCore.SIGNAL('triggered()'), self.nodeArea.addInput)
 
         addOutput = QtGui.QAction('Add Output', self)
+        addOutput.setShortcut('Ctrl+O')
         addOutput.setStatusTip('Add an output to selected node')
         self.connect(addOutput, QtCore.SIGNAL('triggered()'), self.nodeArea.addOutput)
 
+        serialize = QtGui.QAction('Serialize Current', self)
+        serialize.setShortcut('Shift+S')
+        serialize.setStatusTip('Show equivalent Haskell code for selected node')
+        self.connect(serialize, QtCore.SIGNAL('triggered()'), self.nodeArea.serializeCurrent)
+
         comp = QtGui.QAction('"Compile"', self)
-        comp.setStatusTip('Show equivalent Haskell code for selected node')
-        self.connect(comp, QtCore.SIGNAL('triggered()'), self.nodeArea.serializeCurrent)
+        comp.setShortcut('Shift+C')
+        comp.setStatusTip('Compile everything')
+        self.connect(comp, QtCore.SIGNAL('triggered()'), self.nodeArea.comp)
+
 
         #exit = QtGui.QAction(QtGui.QIcon('x.png'), 'Exit', self) #[bmw] set exit action, assign an image to it
         exit = QtGui.QAction('Exit', self) #[bmw] set exit action, assign an image to it
@@ -86,7 +98,9 @@ class MainBox(QtGui.QMainWindow):
         modifyNodeMenu.addAction(addOutput)
 
         runNodeMenu = menubar.addMenu('&Run Node')
+        runNodeMenu.addAction(serialize)
         runNodeMenu.addAction(comp)
+
         
 
         toolbar = self.addToolBar('Toolbar') #[bmw] make a new toolbar
@@ -94,6 +108,7 @@ class MainBox(QtGui.QMainWindow):
         #toolbar.addAction(addConstantNode)
         toolbar.addAction(addInput)
         toolbar.addAction(addOutput)
+        toolbar.addAction(serialize)
         toolbar.addAction(comp)
 
         self.raise_() #[bmw] grab focus on creation
