@@ -402,6 +402,7 @@ class HasScriptNode(ContainerNode):
     """Haskell Script Node -- contains haskell code, the equivalent of MathScript nodes in LabView."""
     def __init__(self, parent=None):
         super(HasScriptNode, self).__init__(parent)
+        self.canHoldStuff = False
 
         self.text = QtGui.QGraphicsTextItem("Enter Text Here")
         text_flags = QtCore.Qt.TextEditorInteraction
