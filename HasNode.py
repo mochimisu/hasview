@@ -1,6 +1,8 @@
 import sys
 from PyQt4 import QtGui, QtCore
 
+import HasSyn
+
 class NodeArea(QtGui.QGraphicsScene):
     """Container for Nodes. Used for the main window's central widget."""
     def __init__(self, parent=None):
@@ -67,10 +69,15 @@ class NodeArea(QtGui.QGraphicsScene):
             monoFont = QtGui.QFont("Monospace");
             monoFont.setStyleHint(QtGui.QFont.TypeWriter);
             msgBox.setFont(monoFont)
-
-            outputText = self.focusItem().serializeToString()
-            if outputText == "":
-                outputText = self.focusItem().resolveToString()
+            serialized = self.focusItem().serialize()
+            outputText = ""
+            if serialized is not None:
+                outputText = serialized.toHaskell()
+            else:
+                resolved = self.focusItem().resolve()
+                if len(resolved) > 0:
+                    for resolution in resolved:
+                        outputText += resolution.toHaskell()  
             msgBox.setText(outputText)
             #quick hackery to use setDetails for a copy-able compiled thing
             msgBox.setDetailedText(outputText)
@@ -212,98 +219,15 @@ class BaseNode(QtGui.QGraphicsItemGroup):
 
     def serialize(self):
         """Serialization is the function definition/instantiation"""
-        #Returns (name, args, body) {None means that this node needs no special naming or whatever}
-        #name is named binding
-        #args is list of args of function (None for no args)
-        #body is in the format:
-        # [ (let, resolutions {is a list}),
-        #   (in, [list of variables]),
-        #   (where, resolutions) ]
-
-        # body can be 
-        # [ (haskell, HASKELL STRING) ]
-        # for hasNodes
         return None
 
     def resolve(self):
         """Resolution is the actual function call"""
-        #Returns [ ([list of vars], resolution binding statement) ]
-        #Ex: [ ([a,b,c], foo a),
-        #      ([d], bar b) ]
-        # is equal to:
-        # (a,b,c) = foo a
-        # d       = bar b
 
         firstInputVar = self.inputs[0].name
         firstOutputVar = self.outputs[0].name
-        return [([firstOutputVar], firstInputVar)]
-
-    #sorry for the following mess....
-    def resolveToString(self):
-        resolved = self.resolve()
-        if resolved is None:
-            return ""
-        outputString = ""
-        for resolution in resolved:
-            outputString += self.singleResolutionToString(resolution)
-        return outputString
-
-    def listOfVarsToString(self,lsOfVar):
-        outputString = ""
-        if len(lsOfVar) > 1:
-            return "(" + reduce(lambda x,y: x + ", " + y, lsOfVar) + ")"
-        elif len(lsOfVar) == 1:
-            return lsOfVar[0]
-        else:
-            return ""
-
-    def singleResolutionToString(self,resolution):
-        print resolution
-        return self.listOfVarsToString(resolution[0]) + " = " + resolution[1]
-
-    def serializeToString(self):
-        serialized = self.serialize()
-        print serialized
-        if serialized is None:
-            return ""
-        outputString = ""
-        curSpaces = 0
-        
-        outputString += serialized[0]
-        if serialized[1] is not None:
-            outputString += " " + reduce(lambda x,y: x + " " + y, serialized[1], "")
-        outputString += " = "
-        curSpaces = len(outputString)
-        for body in serialized[2]:
-            if body[0] == "let":
-                curSpaces += 4
-                outputString += body[0] + " "
-                first = True
-                for resolution in body[1]:
-                    if not first:
-                        outputString += " " * curSpaces
-                        first = False
-                    outputString += self.singleResolutionToString(resolution) + "\n"
-                curSpaces -= 4
-            elif body[0] == "in":
-                outputString += " " * curSpaces
-                outputString += body[0] + " " + self.listOfVarsToString(body[1]) + "\n"
-            elif body[0] == "where":
-                outputString += " " * curSpaces
-                outputString += body[0] + " "
-                first = True
-                for resolution in body[1]:
-                    if not first:
-                        outputString += " " * curSpaces
-                    outputString += self.singleResolutionToString(resolution) + "\n"
-            elif body[0] == "haskell":
-                outputString += body[1] + "\n"
-            else:
-                outputString += " " * curSpaces
-                outputString += body[0] + " " + body[1]
-        return outputString
-
-
+        return [HasSyn.Resolution(HasSyn.VarList([firstInputVar]),firstOutputVar)]
+    
     def mouseClickEvent(self, event):
         super(BaseNode, self).mouseClickEvent(event)
 
@@ -345,81 +269,76 @@ class ContainerNode(BaseNode):
     def resolve(self):
         #returns list of (list of bindings, resolution for binding)
         #calling of the function: out = foo in
-        outVars = []
-        inVars = []
+        outVars = HasSyn.VarList()
+        inVars = HasSyn.VarList()
 
         #grab names of outer output links
         for outp in self.outputTunnel:
             links = outp.outer.links
             for link in links:
-                outVars.append(link.name)
+                outVars.addvar(link.name)
 
         #and grab names of outer input links
         for inp in self.inputTunnel:
             links = inp.outer.links
             for link in links:
-                inVars.append(link.name)
+                inVars.addvar(link.name)
 
         #and construct the string of the haskell equivalent
         functionCall = self.name + " "
-        functionCall += reduce(lambda x,y: x + " " + y, inVars) 
-
-        return [(outVars, functionCall)]
+        functionCall += inVars.toHaskellSpace() 
         
+        return [HasSyn.Resolution(outVars, functionCall)]
+    
     def serialize(self): 
         #go backwards from outputs
-        inVars = []
-        outVars = []
-        duplResolutions = []
-        resolutions = []
-        body = []
+        inVars = HasSyn.VarList()
+        outVars = HasSyn.VarList()
+        resolutions = {}
+        body = HasSyn.SerializationBody()
 
         #find inputs
-        inVars = map(lambda inTun: inTun.inner.name, self.inputTunnel)
+        #inVars.extendList(map(lambda inTun: inTun.inner.name, self.inputTunnel))
 
         #add link name resolution from inputs (multiple wires from input)
         for inp in map(lambda inTun: inTun.inner, self.inputTunnel):
             for link in inp.links:
-                resolutions.append(([link.name], inp.name))
+                resolutions[link.name] = HasSyn.Resolution(HasSyn.VarList([link.name]), inp.name)
         
         #find outputs and resolutions
         for out in self.outputTunnel:
             curLink = out.inner.links[0] #current link connected to output node
-            outVars.append(curLink.name) #we want this to be one of our tuple'd outputs
-            duplResolutions.extend(self.resolveUntilInput(curLink.source)) #recursively call link until it is at an input
+            outVars.addVar(curLink.name) #we want this to be one of our tuple'd haskell function outputs
+            resolutions.update(self.resolveUntilInput(curLink.source)) #recursively call link until it is at an input
     
-        #get rid of duplicates
-        for resolution in duplResolutions:
-            if resolution[0] not in map(lambda rs: rs[0], resolutions):
-                resolutions.append(resolution)
-
         #[add serializations here]
 
-        body.append(("let", resolutions))
-        body.append(("in", outVars))
-        
-        return (self.name, inVars, body)
+        body.addLets(resolutions.values())
+        body.addIns(outVars)
+
+        return HasSyn.Serialization(self.name, inVars, body)
 
     def resolveUntilInput(self, sourceVar):
         #recursion from link until input link, using source output IOVar
         
         #if sourceVar.name in map(lambda inp: inp.inner.name, self.inputTunnel):
         if sourceVar.parentItem() is self:
-            print 'asdf'
-            return []
+            return {}
         else:
 
             curNode = sourceVar.parentItem()
-            curList = []
+            curDict = {}
 
             for output in curNode.outputs:
                 for link in output.links:
-                    curList.extend(curNode.resolve())
+                    resolved= curNode.resolve()
+                    for resolution in resolved:
+                        curDict[resolution.varList.toHaskellParen] = resolution
             for inp in curNode.inputs:
                 for link in inp.links:
-                    curList.extend(self.resolveUntilInput(link.source))
+                    curDict.update(self.resolveUntilInput(link.source))
 
-            return curList
+            return curDict
 
 
 class HasScriptNode(ContainerNode):
@@ -439,9 +358,10 @@ class HasScriptNode(ContainerNode):
         setup_default_flags(self)
 
     def serialize(self):
-        inVars = map(lambda inTun: inTun.inner.name, self.inputTunnel)
-        return (self.name, inVars, [("haskell",self.text.toPlainText())])
-
+        inVars = HasSyn.VarList(map(lambda inTun: inTun.inner.name, self.inputTunnel))
+        body = HasSyn.SerializationBody()
+        body.setHaskell(self.text.toPlainText())
+        return HasSyn.Serialization(self.name, inVars, body)
 
 class ConstantNode(BaseNode):
     """Constant value used as an output only"""
@@ -465,7 +385,8 @@ class ConstantNode(BaseNode):
         resolutions = []
         for output in self.outputs:
             for link in output.links:
-                resolutions.append(([link.name], self.text.toPlainText()))
+                resolutions.append(HasSyn.Resolution(HasSyn.VarList([link.name]),
+                                                     self.text.toPlainText()))
         return resolutions
 
 class NamedFunctionNode(BaseNode):
@@ -487,16 +408,26 @@ class NamedFunctionNode(BaseNode):
         self.addOutput()
 
     def resolve(self): #ex: foo a b
-        funcCall = "(" + self.text.toPlainText() + " " + reduce(lambda x,y: x + " " + y,
-                map(lambda inp: inp.links[0].name, self.inputs)) + ")"
-        
+
+        funcCall = "(" + self.text.toPlainText() + " " + \
+                   reduce(lambda x,y: x + " " + y,
+                          map(lambda inp: inp.links[0].name,
+                              self.inputs),
+                          "") + \
+                    ")"
+        """
+        outVars = HasSyn.VarList()
+        for output in self.outputs:
+            for link in output.links:
+                outVars.addVar(link.name)
+        return [HasSyn.Resolution(outVars,funcCall)]
+        """
         resolutions = []
         for output in self.outputs:
             for link in output.links:
-                resolutions.append(([link.name], funcCall))
-
-
+                resolutions.append(HasSyn.Resolution(link.name, funcCall))
         return resolutions
+
 
 class HasTextNode(QtGui.QGraphicsTextItem):
     """Wrapper around QGraphicsTextItem. Will be edited to have syntax highlighting."""
