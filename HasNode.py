@@ -508,16 +508,16 @@ class HasNodeOutput(HasNodeIOVar):
 class HasNodeInputInner(HasNodeOutput):
     def __init__(self, num_prev_inputs, parent=None):
         super(HasNodeInputInner, self).__init__(num_prev_inputs, parent)
-        self.setRect(0, 
-                     20 * num_prev_inputs,
-                     20,
+        self.setRect(self.parentItem().boundingRect().x(),
+                     20 * num_prev_inputs +  + self.parentItem().boundingRect().y(),
+                     20,                    
                      20)
 
 class HasNodeOutputInner(HasNodeInput):
     def __init__(self, num_prev_outputs, parent=None):
         super(HasNodeOutputInner, self).__init__(num_prev_outputs, parent)
-        self.setRect(self.parentItem().boundingRect().topRight().x() - 20,
-                     20 * num_prev_outputs,
+        self.setRect(self.parentItem().boundingRect().topRight().x()-20,
+                     20 * num_prev_outputs + self.parentItem().boundingRect().topRight().y(),
                      20,
                      20)
 
