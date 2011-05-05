@@ -209,6 +209,9 @@ class BaseNode(QtGui.QGraphicsItemGroup):
         self.name = "n" + str(BaseNode.idCounter)
         BaseNode.idCounter += 1
 
+        self.isResizing = False
+        self.clickedOffset = QtCore.QPointF()
+
     def addInput(self):
         new_input = HasNodeInput(len(self.inputs), parent=self)
         self.inputs.append(new_input)
@@ -228,8 +231,11 @@ class BaseNode(QtGui.QGraphicsItemGroup):
         firstOutputVar = self.outputs[0].name
         return [HasSyn.Resolution(HasSyn.VarList([firstInputVar]),firstOutputVar)]
     
-    def mouseClickEvent(self, event):
-        super(BaseNode, self).mouseClickEvent(event)
+    def mousePressEvent(self, event):
+        super(BaseNode, self).mousePressEvent(event)
+        if event.button() == QtCore.Qt.LeftButton and (event.pos().x() > (self.frameRect.rect().width()-10)) and (event.pos().y() > (self.frameRect.rect().height()-10)): #check for 10px by 10px box on bottom right (better to not hardcode?)
+            self.isResizing = True
+            self.clickedOffset = QtCore.QPointF(self.frameRect.rect().width() - event.pos().x(), self.frameRect.rect().height() - event.pos().y())
 
     def focusInEvent(self, event):
         super(BaseNode, self).focusInEvent(event)
@@ -238,11 +244,26 @@ class BaseNode(QtGui.QGraphicsItemGroup):
         super(BaseNode, self).focusOutEvent(event)
 
     def paint(self, qp, opt, widget):
-        if(self.hasFocus()):
+        """if(self.hasFocus()):
             newPen = QtGui.QPen(qp.pen())
             newPen.setWidth(3)
-            qp.setPen(newPen)
+            qp.setPen(newPen)"""
         super(BaseNode, self).paint(qp,opt,widget)
+
+    def mouseMoveEvent(self, event):
+        if (event.buttons() & QtCore.Qt.LeftButton) and self.isResizing:
+            btmRtPt = event.pos() + self.clickedOffset;
+            if(btmRtPt.x() > 10 and btmRtPt.y() > 10): #make sure box is >10px in every dimension
+                #self.prepareGeometryChange()
+                self.frameRect.setRect(self.frameRect.x(), self.frameRect.y(), btmRtPt.x(), btmRtPt.y())
+                temp = self.frameRect
+                #quick hacky way to make it update itself.. how do you actually make it update?
+                self.removeFromGroup(temp)
+                self.addToGroup(temp)
+        else:
+            super(BaseNode, self).mouseMoveEvent(event)
+
+
 
 
 class ContainerNode(BaseNode):
