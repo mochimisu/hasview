@@ -402,18 +402,19 @@ class ContainerNode(BaseNode):
         if sourceVar.parentItem() is self:
             print 'asdf'
             return []
+        else:
 
-        curNode = sourceVar.parentItem()
-        curList = []
+            curNode = sourceVar.parentItem()
+            curList = []
 
-        for output in curNode.outputs:
-            for link in output.links:
-                curList.extend(curNode.resolve())
-        for inp in curNode.inputs:
-            for link in inp.links:
-                curList.extend(self.resolveUntilInput(link.source))
+            for output in curNode.outputs:
+                for link in output.links:
+                    curList.extend(curNode.resolve())
+            for inp in curNode.inputs:
+                for link in inp.links:
+                    curList.extend(self.resolveUntilInput(link.source))
 
-        return curList
+            return curList
 
 
 class HasScriptNode(ContainerNode):
