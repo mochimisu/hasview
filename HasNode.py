@@ -393,6 +393,7 @@ class MainNode(ContainerNode):
     def __init__(self, parent=None):
         super(MainNode, self).__init__(parent)
         super(MainNode, self).addOutput()
+        self.name = "main"
 
     def addInput(self):
         None
