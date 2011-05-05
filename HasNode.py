@@ -274,13 +274,13 @@ class ContainerNode(BaseNode):
         for outp in self.outputTunnel:
             links = outp.outer.links
             for link in links:
-                outVars.addvar(link.name)
+                outVars.addVar(link.name)
 
         #and grab names of outer input links
         for inp in self.inputTunnel:
             links = inp.outer.links
             for link in links:
-                inVars.addvar(link.name)
+                inVars.addVar(link.name)
 
         #and construct the string of the haskell equivalent
         functionCall = self.name + " "
@@ -296,7 +296,7 @@ class ContainerNode(BaseNode):
         body = HasSyn.SerializationBody()
 
         #find inputs
-        #inVars.extendList(map(lambda inTun: inTun.inner.name, self.inputTunnel))
+        inVars.extendList(map(lambda inTun: inTun.inner.name, self.inputTunnel))
 
         #add link name resolution from inputs (multiple wires from input)
         for inp in map(lambda inTun: inTun.inner, self.inputTunnel):
@@ -309,7 +309,13 @@ class ContainerNode(BaseNode):
             outVars.addVar(curLink.name) #we want this to be one of our tuple'd haskell function outputs
             resolutions.update(self.resolveUntilInput(curLink.source)) #recursively call link until it is at an input
     
-        #[add serializations here]
+        #serializations of children
+        childrenNodes = filter(lambda x: isinstance(x,BaseNode), self.childItems())
+        for child in childrenNodes:
+            serialized = child.serialize()
+            binding = serialized.name + " " + serialized.args.toHaskellSpace()
+            resolutions[binding] = HasSyn.Resolution(HasSyn.VarList([binding]), serialized.body.toHaskell(len(binding) + 3))
+        
 
         body.addLets(resolutions.values())
         body.addIns(outVars)
