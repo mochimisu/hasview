@@ -63,6 +63,11 @@ class NodeArea(QtGui.QGraphicsScene):
         if self.focusItem():
             #TODO: move this somewhere else (i put this here just to make it show for now)
             msgBox = QtGui.QMessageBox()
+            #monospace font
+            monoFont = QtGui.QFont("Monospace");
+            monoFont.setStyleHint(QtGui.QFont.TypeWriter);
+            msgBox.setFont(monoFont)
+
             outputText = self.focusItem().serializeToString()
             if outputText == "":
                 outputText = self.focusItem().resolveToString()
