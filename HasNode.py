@@ -13,6 +13,8 @@ class NodeArea(QtGui.QGraphicsScene):
         super(NodeArea, self).__init__(parent)
 
         self.viewer = QtGui.QGraphicsView(self)
+        self.mainContainer = MainNode() #maincontainer breaks the dragging bezier by mouse, but it is also broken for nested nodes, so we should fix that issues instead of not using a container node
+        self.addItem(self.mainContainer)
 
     def addNodeByClass(self, nodeType):
         """Adds a GraphicsItem to our scene and gives it focus"""
@@ -20,7 +22,7 @@ class NodeArea(QtGui.QGraphicsScene):
             #Apparently when called with a non-None parent, it adds itself to the scene...
             node = nodeType(self.focusItem())
         else:
-            node = nodeType(None)
+            node = nodeType(self.mainContainer)
             self.addItem(node)
             self.setFocusItem(node)
 
@@ -66,8 +68,8 @@ class NodeArea(QtGui.QGraphicsScene):
             #TODO: move this somewhere else (i put this here just to make it show for now)
             msgBox = QtGui.QMessageBox()
             #monospace font
-            monoFont = QtGui.QFont("Monospace");
-            monoFont.setStyleHint(QtGui.QFont.TypeWriter);
+            monoFont = QtGui.QFont("Monospace")
+            monoFont.setStyleHint(QtGui.QFont.TypeWriter)
             msgBox.setFont(monoFont)
             serialized = self.focusItem().serialize()
             outputText = ""
@@ -85,8 +87,21 @@ class NodeArea(QtGui.QGraphicsScene):
         else:
             self.viewer.parent().statusBar().showMessage("Cannot serialize: no selected node!")
 
-    def comp(self):
-        print 'asdf'
+    def comp(self): #basically a serialization of the main node
+        msgBox = QtGui.QMessageBox()
+        monoFont = QtGui.QFont("Monospace")
+        monoFont.setStyleHint(QtGui.QFont.TypeWriter)
+        msgBox.setFont(monoFont)
+        serializedTopNodes = []
+        
+        nodes = filter(lambda child: isinstance(child, BaseNode), self.mainContainer.childItems())
+        serialized = self.mainContainer.serialize()
+        if serialized is not None:
+            outputText = serialized.toHaskell()
+            msgBox.setText(outputText)
+            msgBox.setDetailedText(outputText)
+        msgBox.exec_()
+        
 
     def mouseMoveEvent(self, event):
         """mouse movement of node area. super() call allows to drag boxes around, and the rest allows to display lines after an iovar was selected """
@@ -372,6 +387,21 @@ class ContainerNode(BaseNode):
 
             return curDict
 
+#quick hacky to get print statement in there
+class MainNode(ContainerNode):
+    #cannot add input or output
+    def __init__(self, parent=None):
+        super(MainNode, self).__init__(parent)
+        super(MainNode, self).addOutput()
+
+    def addInput(self):
+        None
+    def addOutput(self):
+        None
+    def serialize(self):
+        serialized = super(MainNode, self).serialize()
+        serialized.body.setInFunction("print")
+        return serialized
 
 class HasScriptNode(ContainerNode):
     """Haskell Script Node -- contains haskell code, the equivalent of MathScript nodes in LabView."""

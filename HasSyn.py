@@ -35,7 +35,7 @@ class VarList(HaskellSynthesizer):
         if len(self.varList) > 1:
             outputString += reduce(lambda x,y: x + " " + y, self.varList, "")
         elif len(self.varList) == 1:
-            outputString + self.varList[0]
+            outputString += self.varList[0]
         return outputString
 
     def __str__(self, curSpaces=0):
@@ -67,6 +67,9 @@ class SerializationBody(HaskellSynthesizer):
         self.whereResolutions = []
         self.haskell = ""
 
+        #hack to set functino for output (print for main container)
+        self.inFunction = None
+
     def addSingleLet(self, resolution):
         self.letResolutions.append(resolution)
     def addSingleIn(self, variable):
@@ -83,6 +86,8 @@ class SerializationBody(HaskellSynthesizer):
     
     def setHaskell(self, haskellString):
         self.haskell = haskellString
+    def setInFunction(self, fnName):
+        self.inFunction = fnName
 
     def toHaskell(self, curSpaces=0, indentFirst=False):
         return self.__str__(curSpaces,indentFirst)
@@ -109,7 +114,12 @@ class SerializationBody(HaskellSynthesizer):
                     outputStr += "\n"
                 outputStr += (" "*curSpaces)
             if not self.inVariables.isEmpty():
-                outputStr += "in " + self.inVariables.toHaskellParen()
+                outputStr += "in "
+                #hack for "in function" to call a function (used in mainContainer)
+                if self.inFunction is not None:
+                    outputStr += self.inFunction + " " + self.inVariables.toHaskellSpace()
+                else:
+                    outputStr += self.inVariables.toHaskellParen()
             if len(self.whereResolutions) > 0:
                 whereSpaces = curSpaces + 6
                 outputStr += "where "
