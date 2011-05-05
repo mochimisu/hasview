@@ -233,9 +233,11 @@ class BaseNode(QtGui.QGraphicsItemGroup):
     
     def mousePressEvent(self, event):
         super(BaseNode, self).mousePressEvent(event)
+        """
         if event.button() == QtCore.Qt.LeftButton and (event.pos().x() > (self.frameRect.rect().width()-10)) and (event.pos().y() > (self.frameRect.rect().height()-10)): #check for 10px by 10px box on bottom right (better to not hardcode?)
             self.isResizing = True
             self.clickedOffset = QtCore.QPointF(self.frameRect.rect().width() - event.pos().x(), self.frameRect.rect().height() - event.pos().y())
+        """
 
     def focusInEvent(self, event):
         super(BaseNode, self).focusInEvent(event)
@@ -251,6 +253,7 @@ class BaseNode(QtGui.QGraphicsItemGroup):
         super(BaseNode, self).paint(qp,opt,widget)
 
     def mouseMoveEvent(self, event):
+        """
         if (event.buttons() & QtCore.Qt.LeftButton) and self.isResizing:
             btmRtPt = event.pos() + self.clickedOffset;
             if(btmRtPt.x() > 10 and btmRtPt.y() > 10): #make sure box is >10px in every dimension
@@ -262,6 +265,9 @@ class BaseNode(QtGui.QGraphicsItemGroup):
                 self.addToGroup(temp)
         else:
             super(BaseNode, self).mouseMoveEvent(event)
+            """
+        super(BaseNode, self).mouseMoveEvent(event)
+
 
 
 
