@@ -232,19 +232,17 @@ class BaseNode(QtGui.QGraphicsItemGroup):
         super(BaseNode, self).mouseClickEvent(event)
 
     def focusInEvent(self, event):
-        super(BaseNode, self).focusInEvent(event) 
+        super(BaseNode, self).focusInEvent(event)
 
     def focusOutEvent(self, event):
         super(BaseNode, self).focusOutEvent(event)
 
     def paint(self, qp, opt, widget):
-        super(BaseNode, self).paint(qp,opt,widget)
         if(self.hasFocus()):
             newPen = QtGui.QPen(qp.pen())
             newPen.setWidth(3)
             qp.setPen(newPen)
-            qp.drawRect(self.frameRect.rect())
-
+        super(BaseNode, self).paint(qp,opt,widget)
 
 
 class ContainerNode(BaseNode):
