@@ -313,8 +313,9 @@ class ContainerNode(BaseNode):
         childrenNodes = filter(lambda x: isinstance(x,BaseNode), self.childItems())
         for child in childrenNodes:
             serialized = child.serialize()
-            binding = serialized.name + " " + serialized.args.toHaskellSpace()
-            resolutions[binding] = HasSyn.Resolution(HasSyn.VarList([binding]), serialized.body.toHaskell(len(binding) + 3))
+            if serialized is not None:
+                binding = serialized.name + " " + serialized.args.toHaskellSpace()
+                resolutions[binding] = HasSyn.Resolution(HasSyn.VarList([binding]), serialized.body.toHaskell(len(binding) + 3))
         
 
         body.addLets(resolutions.values())
@@ -337,7 +338,7 @@ class ContainerNode(BaseNode):
                 for link in output.links:
                     resolved= curNode.resolve()
                     for resolution in resolved:
-                        curDict[resolution.varList.toHaskellParen] = resolution
+                        curDict[resolution.varList.toHaskellParen()] = resolution
             for inp in curNode.inputs:
                 for link in inp.links:
                     curDict.update(self.resolveUntilInput(link.source))
@@ -429,7 +430,7 @@ class NamedFunctionNode(BaseNode):
         resolutions = []
         for output in self.outputs:
             for link in output.links:
-                resolutions.append(HasSyn.Resolution(link.name, funcCall))
+                resolutions.append(HasSyn.Resolution(HasSyn.VarList([link.name]), funcCall))
         return resolutions
 
 

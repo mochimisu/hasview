@@ -31,7 +31,13 @@ class VarList(HaskellSynthesizer):
     def toHaskellParen(self, curSpaces=0):
         return self.toHaskell(curSpaces)
     def toHaskellSpace(self, curSpaces=0):
-        return (" " * curSpaces) + reduce(lambda x,y: x + " " + y, self.varList, "") 
+        outputString = " "*curSpaces
+        if len(self.varList) > 1:
+            outputString += reduce(lambda x,y: x + " " + y, self.varList, "")
+        elif len(self.varList) == 1:
+            outputString + self.varList[0]
+        return outputString
+
     def __str__(self, curSpaces=0):
         if len(self.varList) > 1:
             return (" " * curSpaces) + "(" + reduce(lambda x,y: x + ", " + y, self.varList, "") + ")"
@@ -48,9 +54,8 @@ class Resolution(HaskellSynthesizer):
             self.varList = varList
         self.binding = binding
     def __str__(self, curSpaces=0):
-        spacedBinding = str(self.binding)
-        spacer = re.compile("\n")        
-        spacer.sub("\n"+ " "*curSpaces, spacedBinding)
+        spacer = re.compile("\n") 
+        spacedBinding = spacer.sub("\n"+ " "*curSpaces, str(self.binding))
 
 
         return (" " * curSpaces) + self.varList.toHaskellParen() + " = " + spacedBinding
@@ -88,9 +93,7 @@ class SerializationBody(HaskellSynthesizer):
             outputstr += " " * curSpaces
         if self.haskell != "":
             spacer = re.compile("\n")
-            spacedHaskell = str(self.haskell)
-
-            spacer.sub("\n"+ " "*curSpaces, spacedHaskell)
+            spacedHaskell = spacer.sub("\n"+ " "*curSpaces, str(self.haskell))
             outputStr += spacedHaskell
         else:
             if len(self.letResolutions) > 0:
@@ -100,6 +103,7 @@ class SerializationBody(HaskellSynthesizer):
                 for resolution in self.letResolutions:
                     if first:
                         outputStr += resolution.toHaskell()
+                        first = False
                     else:
                         outputStr += resolution.toHaskell(letSpaces)
                     outputStr += "\n"
@@ -113,6 +117,7 @@ class SerializationBody(HaskellSynthesizer):
                 for resolution in self.whereResolutions:
                     if first:
                         outputStr += resolution.toHaskell()
+                        first = False
                     else:
                         outputStr += resolution.toHaskell(whereSpaces)
                     outputStr += "\n"
