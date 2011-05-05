@@ -398,7 +398,9 @@ class ContainerNode(BaseNode):
     def resolveUntilInput(self, sourceVar):
         #recursion from link until input link, using source output IOVar
         
-        if sourceVar in map(lambda inp: inp.inner, self.inputs):
+        #if sourceVar.name in map(lambda inp: inp.inner.name, self.inputTunnel):
+        if sourceVar.parentItem() is self:
+            print 'asdf'
             return []
 
         curNode = sourceVar.parentItem()
@@ -407,8 +409,9 @@ class ContainerNode(BaseNode):
         for output in curNode.outputs:
             for link in output.links:
                 curList.extend(curNode.resolve())
-        for link in curNode.inputs:
-            curList.extend(self.resolveUntilFront(link.source))
+        for inp in curNode.inputs:
+            for link in inp.links:
+                curList.extend(self.resolveUntilInput(link.source))
 
         return curList
 
@@ -478,17 +481,13 @@ class NamedFunctionNode(BaseNode):
         self.addOutput()
 
     def resolve(self): #ex: foo a b
-        outputString = ""
-        funcCall = self.text.toPlainText()
-        for inp in self.inputs:
-            outputString += inp.name + " = " + inp.links[0].source.parentItem().serialize() + "\n"
-            funcCall += " " + inp.name
-        outputString += funcCall
-
+        funcCall = "(" + self.text.toPlainText() + " " + reduce(lambda x,y: x + " " + y,
+                map(lambda inp: inp.links[0].name, self.inputs)) + ")"
+        
         resolutions = []
         for output in self.outputs:
             for link in output.links:
-                resolutions.append(([link.name], outputString))
+                resolutions.append(([link.name], funcCall))
 
 
         return resolutions
