@@ -3,6 +3,11 @@ from PyQt4 import QtGui, QtCore
 
 import HasSyn
 
+class NodeAreaViewer(QtGui.QGraphicsView):
+    def resizeEvent(self, event):
+        self.scene().mainContainer.resizeFrame(event.size().width(), event.size().height())
+        super(NodeAreaViewer, self).resizeEvent(event)
+
 class NodeArea(QtGui.QGraphicsScene):
     """Container for Nodes. Used for the main window's central widget."""
     def __init__(self, parent=None):

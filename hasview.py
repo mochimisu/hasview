@@ -32,7 +32,8 @@ class MainBox(QtGui.QMainWindow):
         
         self.nodeArea = HasNode.NodeArea() # this is the QGraphicsView for the entire node structure.
 
-        self.setCentralWidget(self.nodeArea.viewer) #[bmw] set boxarea as central widget - central widgets take up the rest of the space (after some space is taken up by toolbar, etc)
+        viewer = HasNode.NodeAreaViewer(self.nodeArea)
+        self.setCentralWidget(viewer) #[bmw] set boxarea as central widget - central widgets take up the rest of the space (after some space is taken up by toolbar, etc)
 
         addHasScriptNode = QtGui.QAction('Add Haskell Script Node', self)
         addHasScriptNode.setShortcut('Ctrl+Shift+N')
