@@ -245,7 +245,7 @@ class BaseNode(QtGui.QGraphicsItemGroup):
     
     def mousePressEvent(self, event):
         super(BaseNode, self).mousePressEvent(event)
-        localMousePos = event.pos()
+        localMousePos = self.mapToItem(self.frameRect,event.pos())
 
         if event.button() == QtCore.Qt.LeftButton and (localMousePos.x() > (self.frameRect.rect().width()-20)) and (localMousePos.y() > (self.frameRect.rect().height()-20)): #check for 10px by 10px box on bottom right (better to not hardcode?)
             self.isResizing = True
@@ -279,7 +279,7 @@ class BaseNode(QtGui.QGraphicsItemGroup):
 
     def mouseMoveEvent(self, event):
         if (event.buttons() & QtCore.Qt.LeftButton) and self.isResizing:
-            btmRtPt = event.pos() + self.clickedOffset
+            btmRtPt = self.mapToItem(self.frameRect,event.pos())# + self.clickedOffset
             if(btmRtPt.x() > 10 and btmRtPt.y() > 10): #make sure box is >10px in every dimension
                 #self.prepareGeometryChange()
                 #self.frameRect.setRect(self.frameRect.x(), self.frameRect.y(), btmRtPt.x(), btmRtPt.y())
@@ -556,7 +556,7 @@ class HasNodeInput(HasNodeIOVar):
         self.update()
     
     def updateRelativePos(self):
-        cornerPos = self.mapFromScene(self.parentItem().frameRect.pos())
+        cornerPos = self.parentItem().frameRect.pos()
         self.setRect(-20 + cornerPos.x(),                   # place on left side
                     20 * self.localCounter + cornerPos.y(),  # account for earlier inputs
                     20,                    # 20x20 is a reasonable box size
@@ -581,8 +581,8 @@ class HasNodeOutput(HasNodeIOVar):
         self.update()
     
     def updateRelativePos(self):
-        #cornerPos = self.parentItem().frameRect.pos() + QtCore.QPointF(self.parentItem().frameRect.rect().width(), 0)
-        cornerPos = self.mapFromScene(self.parentItem().frameRect.rect().topRight())
+        cornerPos = self.parentItem().frameRect.pos() + QtCore.QPointF(self.parentItem().frameRect.rect().width(), 0)
+        #cornerPos = self.parentItem().frameRect.rect().topRight()
         self.setRect(cornerPos.x(),   # find the right index to use [haha]
                      20 * self.localCounter + cornerPos.y(),                             # account for earlier inputs
                      20,
@@ -604,8 +604,9 @@ class HasNodeInputInner(HasNodeOutput):
         super(HasNodeInputInner, self).__init__(num_prev_inputs, parent)
 
     def updateRelativePos(self):
-        self.setRect(self.parentItem().frameRect.x(),
-                     20 * self.localCounter +  + self.parentItem().frameRect.y(),
+        cornerPos = self.parentItem().frameRect.pos()
+        self.setRect(cornerPos.x(),
+                     20 * self.localCounter +  + cornerPos.y(),
                      20,                    
                      20)
 
@@ -614,8 +615,10 @@ class HasNodeOutputInner(HasNodeInput):
         super(HasNodeOutputInner, self).__init__(num_prev_outputs, parent)
 
     def updateRelativePos(self):
-        self.setRect(self.parentItem().frameRect.rect().topRight().x()-20,
-                     20 * self.localCounter + self.parentItem().frameRect.rect().topRight().y(),
+        cornerPos = self.parentItem().frameRect.pos() + QtCore.QPointF(self.parentItem().frameRect.rect().width(), 0)
+
+        self.setRect(cornerPos.x()-20,
+                     20 * self.localCounter + cornerPos.y(),
                      20,
                      20)
 
