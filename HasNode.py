@@ -108,11 +108,17 @@ class NodeArea(QtGui.QGraphicsScene):
         super(NodeArea, self).mouseMoveEvent(event)
         if HasNodeIOVar.current_line is not None:
             if HasNodeIOVar.current_line.sink is None:
+                HasNodeIOVar.current_line.sinkLoc = event.scenePos()
+            elif HasNodeIOVar.current_line.source is None:
+                HasNodeIOVar.current_line.sourceLoc = event.scenePos()
+            """
+            if HasNodeIOVar.current_line.sink is None:
                 reassign_p2(HasNodeIOVar.current_line,
                             event.scenePos())
             if HasNodeIOVar.current_line.source is None:
                 reassign_p1(HasNodeIOVar.current_line,
                             event.scenePos())
+            """
 
     def keyPressEvent(self, event):
         if event.key() == QtCore.Qt.Key_Escape and HasNodeIOVar.current_line is not None: #i think we need ==? not sure
@@ -151,52 +157,54 @@ def reassign_p2(line_ref, new_p2):
     line.setP2(new_p2)
     line_ref.setLine(line)
 
-
-class HasLine(QtGui.QGraphicsLineItem):
-    """HasLine -- a line from a source to a sink that resizes itself."""
-    """Source(old node's input): P1 --> Sink(target node's input): P2"""
-
-    """Contains the variable name for linked boxes."""
+class HasLine(QtGui.QGraphicsPathItem):
     idCounter = 0
+    def __init__(self, source=None, sink=None, parent=None):
+        self.source = source
+        self.sink = sink
 
-    def __init__(self, line, parent=None):
-        super(HasLine, self).__init__(line, parent)
-        self.source = None
-        self.sink = None
+        self.sourceLoc = QtCore.QPointF(0,0)
+        self.sinkLoc = QtCore.QPointF(0,0)
+
         self.cubicPath = QtGui.QPainterPath()
-        self.name = "link" + str(HasLine.idCounter)
+        super(HasLine, self).__init__(self.cubicPath, parent)
+        self.name = "l" + str(HasLine.idCounter)
         HasLine.idCounter += 1
 
     def setSource(self, source):
         self.source = source
-        #TODO: check for previous source/sink and remove if reassigned
         source.links.append(self)
+        self.updateLinks()
 
     def setSink(self, sink):
         self.sink = sink
         sink.links.append(self)
-
-    def paint(self, painter, option, widget=None):
-        """Ensure that the line is still accurate. If not: redraw appropriately."""
-        if self.sink is not None and not self.sink.rect().center() == (self.sink.mapFromScene(self.line().p2())):
-            reassign_p2(self,
-                        self.sink.mapToScene(self.sink.rect().center()))
-
-        if self.source is not None and not self.source.rect().center() == (self.source.mapFromScene(self.line().p1())):
-            reassign_p1(self,
-                        self.source.mapToScene(self.source.rect().center()))
-
-        self.updateCubic()
-        painter.setPen(QtCore.Qt.black)
-        painter.drawPath(self.cubicPath)
-#super(HasLine, self).paint(painter, option, widget)
-
-    def updateCubic(self): #i think theres a better way to do this....
-        self.cubicPath = QtGui.QPainterPath(self.line().p1())
-        self.cubicPath.cubicTo(self.line().p1() + QtCore.QPointF(100,100),self.line().p2() + QtCore.QPointF(-100,-100),self.line().p2())
+        self.updateLinks()
     
-    def boundingRect(self):
-        return self.cubicPath.boundingRect()
+    def updateLinks(self):
+        if self.source is not None:
+            self.sourceLoc = self.source.mapToScene(self.source.rect().center())
+        if self.sink is not None:
+            self.sinkLoc = self.sink.mapToScene(self.sink.rect().center())
+
+        self.cubicPath = QtGui.QPainterPath(self.sourceLoc)
+        self.cubicPath.cubicTo(self.sourceLoc + QtCore.QPointF(100,000),
+                               self.sinkLoc + QtCore.QPointF(-100,-100),
+                               self.sinkLoc)
+        self.setPath(self.cubicPath)
+
+
+
+    def setSourceLoc(self, sourceLoc):
+        self.sourceLoc = sourceLoc
+        self.updateLinks()
+
+    def setSinkLoc(self, sinkLoc):
+        self.sinkLoc = sinkLoc
+        self.updateLinks()
+
+    def paint(self, qp, option, widget=None):
+        super(HasLine, self).paint(qp, option, widget)
 
 
 class BaseNode(QtGui.QGraphicsItemGroup):
@@ -537,13 +545,15 @@ class HasNodeInput(HasNodeIOVar):
     def mouseDoubleClickEvent(self, event):
         if HasNodeIOVar.current_line is not None:
             if HasNodeIOVar.current_line.sink is None:
-                reassign_p1(HasNodeIOVar.current_line,
-                            self.mapToScene(self.rect().center()))
+                #reassign_p1(HasNodeIOVar.current_line,
+                #            self.mapToScene(self.rect().center()))
                 HasNodeIOVar.current_line.setSink(self)
                 HasNodeIOVar.current_line = None
         else:
-            HasNodeIOVar.current_line = HasLine(QtCore.QLineF(self.mapToScene(self.rect().center()),
+            """HasNodeIOVar.current_line = HasLine(QtCore.QLineF(self.mapToScene(self.rect().center()),
                                                           self.mapToScene(self.rect().center())))
+            """
+            HasNodeIOVar.current_line = HasLine()
             HasNodeIOVar.current_line.setSink(self)
             self.scene().addItem(HasNodeIOVar.current_line)
 
@@ -560,13 +570,17 @@ class HasNodeOutput(HasNodeIOVar):
     def mouseDoubleClickEvent(self, event):
         if HasNodeIOVar.current_line is not None:
             if HasNodeIOVar.current_line.source is None:
-                reassign_p2(HasNodeIOVar.current_line,
-                            self.mapToScene(self.rect().center()))
+                #reassign_p2(HasNodeIOVar.current_line,
+                #            self.mapToScene(self.rect().center()))
+                
                 HasNodeIOVar.current_line.setSource(self)
                 HasNodeIOVar.current_line = None
         else:
+            """
             HasNodeIOVar.current_line = HasLine(QtCore.QLineF(self.mapToScene(self.rect().center()),
                                                               self.mapToScene(self.rect().center())))
+            """
+            HasNodeIOVar.current_line = HasLine()
             HasNodeIOVar.current_line.setSource(self)
             self.scene().addItem(HasNodeIOVar.current_line)
 
