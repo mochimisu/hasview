@@ -111,14 +111,6 @@ class NodeArea(QtGui.QGraphicsScene):
                 HasNodeIOVar.current_line.sinkLoc = event.scenePos()
             elif HasNodeIOVar.current_line.source is None:
                 HasNodeIOVar.current_line.sourceLoc = event.scenePos()
-            """
-            if HasNodeIOVar.current_line.sink is None:
-                reassign_p2(HasNodeIOVar.current_line,
-                            event.scenePos())
-            if HasNodeIOVar.current_line.source is None:
-                reassign_p1(HasNodeIOVar.current_line,
-                            event.scenePos())
-            """
 
     def keyPressEvent(self, event):
         if event.key() == QtCore.Qt.Key_Escape and HasNodeIOVar.current_line is not None: #i think we need ==? not sure
@@ -142,20 +134,6 @@ def setup_default_flags(item,
             setup_default_flags(i)
     else:
         item.setFlags(flags)
-
-
-def reassign_p1(line_ref, new_p1):
-    """Update the first point of line -- a GraphicsLineItem"""
-    line = line_ref.line()
-    line.setP1(new_p1)
-    line_ref.setLine(line)
-
-
-def reassign_p2(line_ref, new_p2):
-    """Update the second point of line -- a GraphicsLineItem"""
-    line = line_ref.line()
-    line.setP2(new_p2)
-    line_ref.setLine(line)
 
 class HasLine(QtGui.QGraphicsPathItem):
     idCounter = 0
@@ -546,14 +524,9 @@ class HasNodeInput(HasNodeIOVar):
     def mouseDoubleClickEvent(self, event):
         if HasNodeIOVar.current_line is not None:
             if HasNodeIOVar.current_line.sink is None:
-                #reassign_p1(HasNodeIOVar.current_line,
-                #            self.mapToScene(self.rect().center()))
                 HasNodeIOVar.current_line.setSink(self)
                 HasNodeIOVar.current_line = None
         else:
-            """HasNodeIOVar.current_line = HasLine(QtCore.QLineF(self.mapToScene(self.rect().center()),
-                                                          self.mapToScene(self.rect().center())))
-            """
             HasNodeIOVar.current_line = HasLine()
             HasNodeIOVar.current_line.setSink(self)
             self.scene().addItem(HasNodeIOVar.current_line)
@@ -571,16 +544,9 @@ class HasNodeOutput(HasNodeIOVar):
     def mouseDoubleClickEvent(self, event):
         if HasNodeIOVar.current_line is not None:
             if HasNodeIOVar.current_line.source is None:
-                #reassign_p2(HasNodeIOVar.current_line,
-                #            self.mapToScene(self.rect().center()))
-                
                 HasNodeIOVar.current_line.setSource(self)
                 HasNodeIOVar.current_line = None
         else:
-            """
-            HasNodeIOVar.current_line = HasLine(QtCore.QLineF(self.mapToScene(self.rect().center()),
-                                                              self.mapToScene(self.rect().center())))
-            """
             HasNodeIOVar.current_line = HasLine()
             HasNodeIOVar.current_line.setSource(self)
             self.scene().addItem(HasNodeIOVar.current_line)
