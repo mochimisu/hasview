@@ -392,6 +392,14 @@ class ContainerNode(BaseNode):
 
             return curDict
 
+    def mousePressEvent(self, event):
+        if event.button() == QtCore.Qt.RightButton:
+            newName, ok = QtGui.QInputDialog.getText(None, 'Set New Name For ' + str(self.name), 'Enter New Name')
+            if ok:
+                self.name = newName
+        else:
+            super(ContainerNode, self).mousePressEvent(event)
+
     def resizeFrame(self, width, height, posx = 0, posy = 0):
         super(ContainerNode, self).resizeFrame(width, height, posx, posy)
         #update inners beacuse the outers are taken care of by super
@@ -399,9 +407,11 @@ class ContainerNode(BaseNode):
         map(lambda tunnel: tunnel.inner.update(), self.outputTunnel)
 
     def paint(self, qp, option, widget=None):
-        qp.drawText(self.frameRect.pos() + QtCore.QPointF(25,15), QtCore.QString(self.name))
         super(ContainerNode, self).paint(qp, option, widget)
-
+        curFont = qp.font()
+        curFont.setBold(True)
+        qp.setFont(curFont)
+        qp.drawText(self.frameRect.pos() + QtCore.QPointF(25,15), QtCore.QString(self.name))
 
 
 #quick hacky to get print statement in there
@@ -430,7 +440,7 @@ class HasScriptNode(ContainerNode):
         self.text = QtGui.QGraphicsTextItem("Enter Text Here")
         text_flags = QtCore.Qt.TextEditorInteraction
         self.text.setTextInteractionFlags(text_flags)
-        self.text.moveBy(25,0)
+        self.text.moveBy(25,20)
         self.text.setTextWidth(150) #default
         self.addToGroup(self.text)
 
