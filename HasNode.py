@@ -251,6 +251,8 @@ class BaseNode(QtGui.QGraphicsItemGroup):
             self.isResizing = True
             self.clickedOffset = QtCore.QPointF(self.frameRect.rect().width() - localMousePos.x(), self.frameRect.rect().height() - localMousePos.y())
 
+        
+
     def mouseReleaseEvent(self, event):
         super(BaseNode, self).mouseReleaseEvent(event)
         self.isResizing = False
@@ -266,7 +268,6 @@ class BaseNode(QtGui.QGraphicsItemGroup):
         newPen = QtGui.QPen(qp.pen())
         newPen.setWidth(3)
         qp.setPen(newPen)
-        qp.drawText(self.frameRect.pos() + QtCore.QPointF(25,15), QtCore.QString(self.name))
         super(BaseNode, self).paint(qp,opt,widget)    
 
     def resizeFrame(self, width, height, posx=0, posy=0):
@@ -396,6 +397,10 @@ class ContainerNode(BaseNode):
         #update inners beacuse the outers are taken care of by super
         map(lambda tunnel: tunnel.inner.update(), self.inputTunnel)
         map(lambda tunnel: tunnel.inner.update(), self.outputTunnel)
+
+    def paint(self, qp, option, widget=None):
+        qp.drawText(self.frameRect.pos() + QtCore.QPointF(25,15), QtCore.QString(self.name))
+        super(ContainerNode, self).paint(qp, option, widget)
 
 
 
