@@ -239,11 +239,16 @@ class BaseNode(QtGui.QGraphicsItemGroup):
     
     def mousePressEvent(self, event):
         super(BaseNode, self).mousePressEvent(event)
-        """
-        if event.button() == QtCore.Qt.LeftButton and (event.pos().x() > (self.frameRect.rect().width()-10)) and (event.pos().y() > (self.frameRect.rect().height()-10)): #check for 10px by 10px box on bottom right (better to not hardcode?)
+        localMousePos = event.pos()
+
+        if event.button() == QtCore.Qt.LeftButton and (localMousePos.x() > (self.frameRect.rect().width()-20)) and (localMousePos.y() > (self.frameRect.rect().height()-20)): #check for 10px by 10px box on bottom right (better to not hardcode?)
             self.isResizing = True
-            self.clickedOffset = QtCore.QPointF(self.frameRect.rect().width() - event.pos().x(), self.frameRect.rect().height() - event.pos().y())
-        """
+            self.clickedOffset = QtCore.QPointF(self.frameRect.rect().width() - localMousePos.x(), self.frameRect.rect().height() - localMousePos.y())
+
+    def mouseReleaseEvent(self, event):
+        super(BaseNode, self).mouseReleaseEvent(event)
+        self.isResizing = False
+        
 
     def focusInEvent(self, event):
         super(BaseNode, self).focusInEvent(event)
@@ -252,28 +257,28 @@ class BaseNode(QtGui.QGraphicsItemGroup):
         super(BaseNode, self).focusOutEvent(event)
 
     def paint(self, qp, opt, widget):
-        """if(self.hasFocus()):
+        if(self.hasFocus()):
             newPen = QtGui.QPen(qp.pen())
             newPen.setWidth(3)
-            qp.setPen(newPen)"""
+            qp.setPen(newPen)
         super(BaseNode, self).paint(qp,opt,widget)
 
     def mouseMoveEvent(self, event):
-        """
         if (event.buttons() & QtCore.Qt.LeftButton) and self.isResizing:
-            btmRtPt = event.pos() + self.clickedOffset;
+            btmRtPt = event.pos() + self.clickedOffset
             if(btmRtPt.x() > 10 and btmRtPt.y() > 10): #make sure box is >10px in every dimension
                 #self.prepareGeometryChange()
-                self.frameRect.setRect(self.frameRect.x(), self.frameRect.y(), btmRtPt.x(), btmRtPt.y())
+                #self.frameRect.setRect(self.frameRect.x(), self.frameRect.y(), btmRtPt.x(), btmRtPt.y())
+                self.frameRect.setRect(0, 0, btmRtPt.x(), btmRtPt.y())
                 temp = self.frameRect
                 #quick hacky way to make it update itself.. how do you actually make it update?
                 self.removeFromGroup(temp)
                 self.addToGroup(temp)
+                map(lambda iovar: iovar.update(), self.inputs)
+                map(lambda iovar: iovar.update(), self.outputs)
         else:
             super(BaseNode, self).mouseMoveEvent(event)
-            """
-        super(BaseNode, self).mouseMoveEvent(event)
-
+            
 
 
 
@@ -377,6 +382,13 @@ class ContainerNode(BaseNode):
                     curDict.update(self.resolveUntilInput(link.source))
 
             return curDict
+
+    def mouseMoveEvent(self, event):
+        #update inners beacuse the outers are taken care of by super
+        map(lambda tunnel: tunnel.inner.update(), self.inputTunnel)
+        map(lambda tunnel: tunnel.inner.update(), self.outputTunnel)
+        super(ContainerNode, self).mouseMoveEvent(event)
+
 
 #quick hacky to get print statement in there
 class MainNode(ContainerNode):
@@ -509,6 +521,13 @@ class HasNodeIOVar(QtGui.QGraphicsRectItem):
         self.name = "x"+str(HasNodeIOVar.idCounter)
         HasNodeIOVar.idCounter = HasNodeIOVar.idCounter + 1
 
+    def updateRelativePos(self):
+        return None
+
+    def update(self):
+        self.updateRelativePos()
+        super(HasNodeIOVar, self).update()
+
     def addInput(self):
         return self.parentItem().addInput()
 
@@ -520,10 +539,14 @@ class HasNodeInput(HasNodeIOVar):
     """Input box for nodes -- will be placed on the left of a node"""
     def __init__(self, num_prev_inputs, parent=None):
         super(HasNodeInput, self).__init__(parent)
-        self.setRect(-20 + self.parentItem().boundingRect().x(),                   # place on left side
-                     20 * num_prev_inputs +  + self.parentItem().boundingRect().y(),  # account for earlier inputs
-                     20,                    # 20x20 is a reasonable box size
-                     20)
+        self.localCounter = num_prev_inputs
+        self.update()
+    
+    def updateRelativePos(self):
+        self.setRect(-20 + self.parentItem().frameRect.x(),                   # place on left side
+                    20 * self.localCounter +  + self.parentItem().frameRect.y(),  # account for earlier inputs
+                    20,                    # 20x20 is a reasonable box size
+                    20)
 
     def mouseDoubleClickEvent(self, event):
         if HasNodeIOVar.current_line is not None:
@@ -540,10 +563,15 @@ class HasNodeOutput(HasNodeIOVar):
     """Output box for nodes."""
     def __init__(self, num_prev_outputs, parent=None):
         super(HasNodeOutput, self).__init__(parent)
-        self.setRect(self.parentItem().boundingRect().topRight().x(),   # find the right index to use [haha]
-                     20 * num_prev_outputs + self.parentItem().boundingRect().topRight().y(),                             # account for earlier inputs
+        self.localCounter = num_prev_outputs
+        self.update()
+    
+    def updateRelativePos(self):
+        self.setRect(self.parentItem().frameRect.rect().topRight().x(),   # find the right index to use [haha]
+                     20 * self.localCounter + self.parentItem().frameRect.rect().topRight().y(),                             # account for earlier inputs
                      20,
                      20)
+
 
     def mouseDoubleClickEvent(self, event):
         if HasNodeIOVar.current_line is not None:
@@ -558,16 +586,20 @@ class HasNodeOutput(HasNodeIOVar):
 class HasNodeInputInner(HasNodeOutput):
     def __init__(self, num_prev_inputs, parent=None):
         super(HasNodeInputInner, self).__init__(num_prev_inputs, parent)
-        self.setRect(self.parentItem().boundingRect().x(),
-                     20 * num_prev_inputs +  + self.parentItem().boundingRect().y(),
+
+    def updateRelativePos(self):
+        self.setRect(self.parentItem().frameRect.x(),
+                     20 * self.localCounter +  + self.parentItem().frameRect.y(),
                      20,                    
                      20)
 
 class HasNodeOutputInner(HasNodeInput):
     def __init__(self, num_prev_outputs, parent=None):
         super(HasNodeOutputInner, self).__init__(num_prev_outputs, parent)
-        self.setRect(self.parentItem().boundingRect().topRight().x()-20,
-                     20 * num_prev_outputs + self.parentItem().boundingRect().topRight().y(),
+
+    def updateRelativePos(self):
+        self.setRect(self.parentItem().frameRect.rect().topRight().x()-20,
+                     20 * self.localCounter + self.parentItem().frameRect.rect().topRight().y(),
                      20,
                      20)
 
