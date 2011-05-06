@@ -286,8 +286,6 @@ class BaseNode(QtGui.QGraphicsItemGroup):
                 self.resizeFrame(btmRtPt.x(), btmRtPt.y())
         else:
             super(BaseNode, self).mouseMoveEvent(event)
-            
-
 
 
 
@@ -547,6 +545,9 @@ class HasNodeIOVar(QtGui.QGraphicsRectItem):
     def addOutput(self):
         return self.parentItem().addOutput()
 
+    def paint(self, qp, option, widget=None):
+        super(HasNodeIOVar, self).paint(qp, option, widget)
+        qp.drawText(self.boundingRect(), QtCore.Qt.AlignCenter, QtCore.QString(self.name))
 
 class HasNodeInput(HasNodeIOVar):
     """Input box for nodes -- will be placed on the left of a node"""
