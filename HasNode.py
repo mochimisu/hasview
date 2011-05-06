@@ -105,13 +105,13 @@ class NodeArea(QtGui.QGraphicsScene):
 
     def mouseMoveEvent(self, event):
         """mouse movement of node area. super() call allows to drag boxes around, and the rest allows to display lines after an iovar was selected """
-        super(NodeArea, self).mouseMoveEvent(event)
         if HasNodeIOVar.current_line is not None:
             if HasNodeIOVar.current_line.sink is None:
                 HasNodeIOVar.current_line.sinkLoc = event.scenePos()
             elif HasNodeIOVar.current_line.source is None:
                 HasNodeIOVar.current_line.sourceLoc = event.scenePos()
 
+        super(NodeArea, self).mouseMoveEvent(event)
     def keyPressEvent(self, event):
         if event.key() == QtCore.Qt.Key_Escape and HasNodeIOVar.current_line is not None: #i think we need ==? not sure
             if HasNodeIOVar.current_line.source is not None:
@@ -164,12 +164,13 @@ class HasLine(QtGui.QGraphicsPathItem):
             self.sourceLoc = self.source.mapToScene(self.source.rect().center())
         if self.sink is not None:
             self.sinkLoc = self.sink.mapToScene(self.sink.rect().center())
-
+            
         self.cubicPath = QtGui.QPainterPath(self.sourceLoc)
         self.cubicPath.cubicTo(self.sourceLoc + QtCore.QPointF(100,000),
                                self.sinkLoc + QtCore.QPointF(-100,-100),
                                self.sinkLoc)
         self.setPath(self.cubicPath)
+        self.update()
 
 
 
