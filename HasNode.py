@@ -204,6 +204,7 @@ class HasLine(QtGui.QGraphicsPathItem):
         self.updateLinks()
 
     def paint(self, qp, option, widget=None):
+        self.updateLinks()
         super(HasLine, self).paint(qp, option, widget)
 
 
