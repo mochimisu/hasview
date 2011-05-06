@@ -257,12 +257,14 @@ class BaseNode(QtGui.QGraphicsItemGroup):
         super(BaseNode, self).focusOutEvent(event)
 
     def paint(self, qp, opt, widget):
+        """
         if(self.hasFocus()):
             newPen = QtGui.QPen(qp.pen())
             newPen.setWidth(3)
             qp.setPen(newPen)
             qp.drawRect(self.frameRect.rect())
-        #super(BaseNode, self).paint(qp,opt,widget)
+            """
+        super(BaseNode, self).paint(qp,opt,widget)
 
     def mouseMoveEvent(self, event):
         if (event.buttons() & QtCore.Qt.LeftButton) and self.isResizing:
@@ -273,8 +275,8 @@ class BaseNode(QtGui.QGraphicsItemGroup):
                 self.frameRect.setRect(0, 0, btmRtPt.x(), btmRtPt.y())
                 temp = self.frameRect
                 #quick hacky way to make it update itself.. how do you actually make it update?
-                self.removeFromGroup(temp)
-                self.addToGroup(temp)
+                #self.removeFromGroup(temp)
+                #self.addToGroup(temp)
                 map(lambda iovar: iovar.update(), self.inputs)
                 map(lambda iovar: iovar.update(), self.outputs)
         else:
