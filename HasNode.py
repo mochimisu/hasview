@@ -205,11 +205,6 @@ class BaseNode(QtGui.QGraphicsItemGroup):
         self.setHandlesChildEvents(False)  # we need this to ensure that group components are still interactable
 
         self.frameRect = QtGui.QGraphicsRectItem()
-        #self.boundingRect = rect 
-        newPos = QtCore.QPointF(self.x(),self.y())
-        print "self: " + str(self.x()) + ", " + str(self.y())
-        temp = self.mapFromScene(newPos)
-        print "toScene: " + str(temp.x()) + ", " + str(temp.y())
         newRect = QtCore.QRectF(self.x(), self.y(), 200, 200)
         self.frameRect.setRect(newRect)
         self.addToGroup(self.frameRect)
@@ -268,13 +263,10 @@ class BaseNode(QtGui.QGraphicsItemGroup):
         super(BaseNode, self).focusOutEvent(event)
     
     def paint(self, qp, opt, widget):
-        if(self.hasFocus()):
-            newPen = QtGui.QPen(qp.pen())
-            newPen.setWidth(3)
-            qp.setPen(newPen)
-            qp.setBrushOrigin(self.frameRect.pos())
-            qp.drawRect(self.frameRect.rect())
-    
+        newPen = QtGui.QPen(qp.pen())
+        newPen.setWidth(3)
+        qp.setPen(newPen)
+        super(BaseNode, self).paint(qp,opt,widget)    
 
     def resizeFrame(self, width, height, posx=0, posy=0):
         temp = self.frameRect
