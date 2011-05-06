@@ -424,6 +424,8 @@ class HasScriptNode(ContainerNode):
         self.text = QtGui.QGraphicsTextItem("Enter Text Here")
         text_flags = QtCore.Qt.TextEditorInteraction
         self.text.setTextInteractionFlags(text_flags)
+        self.text.moveBy(25,0)
+        self.text.setTextWidth(150) #default
         self.addToGroup(self.text)
 
         # syntax highlighting is fun! Have some for breakfast.
@@ -436,6 +438,10 @@ class HasScriptNode(ContainerNode):
         body = HasSyn.SerializationBody()
         body.setHaskell(self.text.toPlainText())
         return HasSyn.Serialization(self.name, inVars, body)
+    
+    def resizeFrame(self, width, height, posx=0, posy=0):
+        super(HasScriptNode, self).resizeFrame(width, height, posx, posy)
+        self.text.setTextWidth(width-50)
 
 class ConstantNode(BaseNode):
     """Constant value used as an output only"""
