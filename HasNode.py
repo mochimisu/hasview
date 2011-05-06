@@ -266,6 +266,7 @@ class BaseNode(QtGui.QGraphicsItemGroup):
         newPen = QtGui.QPen(qp.pen())
         newPen.setWidth(3)
         qp.setPen(newPen)
+        qp.drawText(self.frameRect.pos() + QtCore.QPointF(25,15), QtCore.QString(self.name))
         super(BaseNode, self).paint(qp,opt,widget)    
 
     def resizeFrame(self, width, height, posx=0, posy=0):
