@@ -261,7 +261,8 @@ class BaseNode(QtGui.QGraphicsItemGroup):
             newPen = QtGui.QPen(qp.pen())
             newPen.setWidth(3)
             qp.setPen(newPen)
-        super(BaseNode, self).paint(qp,opt,widget)
+            qp.drawRect(self.frameRect.rect())
+        #super(BaseNode, self).paint(qp,opt,widget)
 
     def mouseMoveEvent(self, event):
         if (event.buttons() & QtCore.Qt.LeftButton) and self.isResizing:
