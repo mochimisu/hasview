@@ -435,6 +435,8 @@ class MainNode(ContainerNode):
         serialized = super(MainNode, self).serialize()
         serialized.body.setInFunction("print")
         return serialized
+    def mouseMoveEvent(self, event):
+        return None
 
 class HasScriptNode(ContainerNode):
     """Haskell Script Node -- contains haskell code, the equivalent of MathScript nodes in LabView."""
@@ -575,6 +577,14 @@ class HasNodeIOVar(QtGui.QGraphicsRectItem):
     def paint(self, qp, option, widget=None):
         super(HasNodeIOVar, self).paint(qp, option, widget)
         qp.drawText(self.boundingRect(), QtCore.Qt.AlignCenter, QtCore.QString(self.name))
+
+    def mousePressEvent(self, event):
+        if event.button() == QtCore.Qt.RightButton:
+            newName, ok = QtGui.QInputDialog.getText(None, 'Set New Name For ' + str(self.name), 'Enter New Name')
+            if ok:
+                self.name = newName
+        else:
+            super(HasNodeIOVar, self).mousePressEvent(event)
 
 class HasNodeInput(HasNodeIOVar):
     """Input box for nodes -- will be placed on the left of a node"""

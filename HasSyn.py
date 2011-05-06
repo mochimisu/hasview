@@ -107,7 +107,10 @@ class SerializationBody(HaskellSynthesizer):
                 first = True
                 for resolution in self.letResolutions:
                     if first:
-                        outputStr += resolution.toHaskell()
+                        
+                        spacer = re.compile("\n") 
+                        outputStr += spacer.sub("\n"+ " "*letSpaces, str(resolution.toHaskell()))
+                        
                         first = False
                     else:
                         outputStr += resolution.toHaskell(letSpaces)
