@@ -15,6 +15,7 @@ class NodeArea(QtGui.QGraphicsScene):
         self.viewer = QtGui.QGraphicsView(self)
         self.mainContainer = MainNode() #maincontainer breaks the dragging bezier by mouse, but it is also broken for nested nodes, so we should fix that issues instead of not using a container node
         self.addItem(self.mainContainer)
+        self.mainContainer.resizeFrame(self.width(), self.height())
 
 
     def addNodeByClass(self, nodeType):
@@ -204,9 +205,19 @@ class BaseNode(QtGui.QGraphicsItemGroup):
         self.setHandlesChildEvents(False)  # we need this to ensure that group components are still interactable
 
         self.frameRect = QtGui.QGraphicsRectItem()
-        self.frameRect.setRect(QtCore.QRectF(self.x(), self.y(), 200, 200))  #default size
-        #self.boundingRect = rect
+        #self.boundingRect = rect 
+        newPos = QtCore.QPointF(self.x(),self.y())
+        print "self: " + str(self.x()) + ", " + str(self.y())
+        temp = self.mapFromScene(newPos)
+        print "toScene: " + str(temp.x()) + ", " + str(temp.y())
+        newRect = QtCore.QRectF(self.x(), self.y(), 200, 200)
+        self.frameRect.setRect(newRect)
         self.addToGroup(self.frameRect)
+        
+        
+        #startPos = QtCore.QPointF(0,0)
+
+        #self.resizeFrame(200,200, startPos.x(), startPos.y())  #default size
 
         # if we want syntax highlighting for Haskell Nodes s/QLabel/QTextEdit
         # and subclass QSyntaxHighlighter
@@ -255,13 +266,24 @@ class BaseNode(QtGui.QGraphicsItemGroup):
 
     def focusOutEvent(self, event):
         super(BaseNode, self).focusOutEvent(event)
-
+    
     def paint(self, qp, opt, widget):
         if(self.hasFocus()):
             newPen = QtGui.QPen(qp.pen())
             newPen.setWidth(3)
             qp.setPen(newPen)
+            qp.setBrushOrigin(self.frameRect.pos())
             qp.drawRect(self.frameRect.rect())
+    
+
+    def resizeFrame(self, width, height, posx=0, posy=0):
+        temp = self.frameRect
+        self.frameRect.setRect(posx, posy, width, height)
+        #quick hacky way to make it update itself.. how do you actually make it update?
+        self.removeFromGroup(temp)
+        self.addToGroup(temp)
+        map(lambda iovar: iovar.update(), self.inputs)
+        map(lambda iovar: iovar.update(), self.outputs)
 
     def mouseMoveEvent(self, event):
         if (event.buttons() & QtCore.Qt.LeftButton) and self.isResizing:
@@ -269,13 +291,7 @@ class BaseNode(QtGui.QGraphicsItemGroup):
             if(btmRtPt.x() > 10 and btmRtPt.y() > 10): #make sure box is >10px in every dimension
                 #self.prepareGeometryChange()
                 #self.frameRect.setRect(self.frameRect.x(), self.frameRect.y(), btmRtPt.x(), btmRtPt.y())
-                self.frameRect.setRect(0, 0, btmRtPt.x(), btmRtPt.y())
-                temp = self.frameRect
-                #quick hacky way to make it update itself.. how do you actually make it update?
-                self.removeFromGroup(temp)
-                self.addToGroup(temp)
-                map(lambda iovar: iovar.update(), self.inputs)
-                map(lambda iovar: iovar.update(), self.outputs)
+                self.resizeFrame(btmRtPt.x(), btmRtPt.y())
         else:
             super(BaseNode, self).mouseMoveEvent(event)
             
@@ -285,10 +301,11 @@ class BaseNode(QtGui.QGraphicsItemGroup):
 
 class ContainerNode(BaseNode):
     def __init__(self, parent=None):
-        super(ContainerNode, self).__init__(parent)
-        self.canHoldStuff = True
         self.inputTunnel = []
         self.outputTunnel = []
+        super(ContainerNode, self).__init__(parent)
+        self.canHoldStuff = True
+
     
     def addInput(self):
         outerInput = HasNodeInput(len(self.inputTunnel), parent=self)
@@ -383,11 +400,12 @@ class ContainerNode(BaseNode):
 
             return curDict
 
-    def mouseMoveEvent(self, event):
+    def resizeFrame(self, width, height, posx = 0, posy = 0):
+        super(ContainerNode, self).resizeFrame(width, height, posx, posy)
         #update inners beacuse the outers are taken care of by super
         map(lambda tunnel: tunnel.inner.update(), self.inputTunnel)
         map(lambda tunnel: tunnel.inner.update(), self.outputTunnel)
-        super(ContainerNode, self).mouseMoveEvent(event)
+
 
 
 #quick hacky to get print statement in there
@@ -434,9 +452,12 @@ class ConstantNode(BaseNode):
     def __init__(self, parent=None):
         super(ConstantNode, self).__init__(parent)
 
-        self.removeFromGroup(self.frameRect)
-        self.frameRect.setRect(QtCore.QRectF(self.x(), self.y(), 125, 25))
-        self.addToGroup(self.frameRect)
+
+        #self.resizeFrame(125,25)
+
+        #self.removeFromGroup(self.frameRect)
+        #self.frameRect.setRect(QtCore.QRectF(0, 0, 125, 25))
+        #self.addToGroup(self.frameRect)
 
         self.text = QtGui.QGraphicsTextItem("Constant")
         text_flags = QtCore.Qt.TextEditorInteraction
@@ -543,8 +564,9 @@ class HasNodeInput(HasNodeIOVar):
         self.update()
     
     def updateRelativePos(self):
-        self.setRect(-20 + self.parentItem().frameRect.x(),                   # place on left side
-                    20 * self.localCounter +  + self.parentItem().frameRect.y(),  # account for earlier inputs
+        cornerPos = self.mapFromScene(self.parentItem().frameRect.pos())
+        self.setRect(-20 + cornerPos.x(),                   # place on left side
+                    20 * self.localCounter + cornerPos.y(),  # account for earlier inputs
                     20,                    # 20x20 is a reasonable box size
                     20)
 
@@ -567,8 +589,10 @@ class HasNodeOutput(HasNodeIOVar):
         self.update()
     
     def updateRelativePos(self):
-        self.setRect(self.parentItem().frameRect.rect().topRight().x(),   # find the right index to use [haha]
-                     20 * self.localCounter + self.parentItem().frameRect.rect().topRight().y(),                             # account for earlier inputs
+        #cornerPos = self.parentItem().frameRect.pos() + QtCore.QPointF(self.parentItem().frameRect.rect().width(), 0)
+        cornerPos = self.mapFromScene(self.parentItem().frameRect.rect().topRight())
+        self.setRect(cornerPos.x(),   # find the right index to use [haha]
+                     20 * self.localCounter + cornerPos.y(),                             # account for earlier inputs
                      20,
                      20)
 
