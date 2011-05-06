@@ -16,6 +16,7 @@ class NodeArea(QtGui.QGraphicsScene):
         self.mainContainer = MainNode() #maincontainer breaks the dragging bezier by mouse, but it is also broken for nested nodes, so we should fix that issues instead of not using a container node
         self.addItem(self.mainContainer)
 
+
     def addNodeByClass(self, nodeType):
         """Adds a GraphicsItem to our scene and gives it focus"""
         if self.focusItem() and self.focusItem().canHoldStuff:
@@ -214,6 +215,8 @@ class BaseNode(QtGui.QGraphicsItemGroup):
 
         self.isResizing = False
         self.clickedOffset = QtCore.QPointF()
+        
+        self.setAcceptHoverEvents(True)
 
     def addInput(self):
         new_input = HasNodeInput(len(self.inputs), parent=self)
