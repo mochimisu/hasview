@@ -26,7 +26,7 @@ class MainBox(QtGui.QMainWindow):
         QtGui.QMainWindow.__init__(self)
 
         self.resize(500, 500) #[bmw] window size
-        self.setWindowTitle('PyQt Testing!') #[bmw] window title
+        self.setWindowTitle('HasView') #[bmw] window title
 
         #self.nodeArea = HasNode.NodeArea() #[bmw] declare area for nodes to move around
         

@@ -78,10 +78,10 @@ class NodeArea(QtGui.QGraphicsScene):
             monoFont = QtGui.QFont("Monospace")
             monoFont.setStyleHint(QtGui.QFont.TypeWriter)
             msgBox.setFont(monoFont)
-            serialized = self.focusItem().serialize()
+            serializedList = self.focusItem().serialize()
             outputText = ""
-            if serialized is not None:
-                outputText = serialized.toHaskell()
+            if len(serializedList) > 0:
+                outputText = str(reduce(lambda x,y: x.toHaskell() + "\n" + y.toHaskell(),serializedList))
             else:
                 resolved = self.focusItem().resolve()
                 if len(resolved) > 0:
@@ -102,7 +102,7 @@ class NodeArea(QtGui.QGraphicsScene):
         serializedTopNodes = []
         
         nodes = filter(lambda child: isinstance(child, BaseNode), self.mainContainer.childItems())
-        serialized = self.mainContainer.serialize()
+        serialized = self.mainContainer.serialize()[0] #main can only have 1 serialiaztion
         if serialized is not None:
             outputText = serialized.toHaskell()
             msgBox.setText(outputText)
@@ -238,8 +238,8 @@ class BaseNode(QtGui.QGraphicsItemGroup):
         self.outputs.append(new_output)
 
     def serialize(self):
-        """Serialization is the function definition/instantiation"""
-        return None
+        """Serialization is the list of function definition/instantiation"""
+        return [None]
 
     def resolve(self):
         """Resolution is the actual function call"""
@@ -364,16 +364,17 @@ class ContainerNode(BaseNode):
         #serializations of children
         childrenNodes = filter(lambda x: isinstance(x,BaseNode), self.childItems())
         for child in childrenNodes:
-            serialized = child.serialize()
-            if serialized is not None:
-                binding = serialized.name + " " + serialized.args.toHaskellSpace()
-                resolutions[binding] = HasSyn.Resolution(HasSyn.VarList([binding]), serialized.body.toHaskell(len(binding) + 3))
+            serializedList= child.serialize()
+            for serialized in serializedList:
+                if serialized is not None:
+                    binding = serialized.name + " " + serialized.args.toHaskellSpace()
+                    resolutions[binding] = HasSyn.Resolution(HasSyn.VarList([binding]), serialized.body.toHaskell(len(binding) + 3))
         
 
         body.addLets(resolutions.values())
         body.addIns(outVars)
 
-        return HasSyn.Serialization(self.name, inVars, body)
+        return [HasSyn.Serialization(self.name, inVars, body)]
 
     def resolveUntilInput(self, sourceVar):
         #recursion from link until input link, using source output IOVar
@@ -433,7 +434,7 @@ class MainNode(ContainerNode):
         None
     def serialize(self):
         serialized = super(MainNode, self).serialize()
-        serialized.body.setInFunction("print")
+        serialized[0].body.setInFunction("print") #main node can not have multiple serializations
         return serialized
     def mouseMoveEvent(self, event):
         return None
@@ -460,7 +461,7 @@ class HasScriptNode(ContainerNode):
         inVars = HasSyn.VarList(map(lambda inTun: inTun.inner.name, self.inputTunnel))
         body = HasSyn.SerializationBody()
         body.setHaskell(self.text.toPlainText())
-        return HasSyn.Serialization(self.name, inVars, body)
+        return [HasSyn.Serialization(self.name, inVars, body)]
     
     def resizeFrame(self, width, height, posx=0, posy=0):
         super(HasScriptNode, self).resizeFrame(width, height, posx, posy)
@@ -472,7 +473,7 @@ class ConstantNode(BaseNode):
         super(ConstantNode, self).__init__(parent)
 
 
-        #self.resizeFrame(125,25)
+        self.resizeFrame(75,30)
 
         #self.removeFromGroup(self.frameRect)
         #self.frameRect.setRect(QtCore.QRectF(0, 0, 125, 25))
