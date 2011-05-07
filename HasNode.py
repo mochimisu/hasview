@@ -513,6 +513,9 @@ class SplitWindowContainerNode(ContainerNode):
     def rename(self, name):
         self.parentItem().rename(name)
 
+    def addSplit(self):
+        self.parentItem().addSplit()
+
 #quick hacky to get print statement in there
 class MainNode(ContainerNode):
     #cannot add input or output

@@ -53,7 +53,12 @@ class MainBox(QtGui.QMainWindow):
         addContainerNode = QtGui.QAction('Add Container Node', self)
         addContainerNode.setShortcut('Ctrl+Shift+R')
         addContainerNode.setStatusTip('add a new Container Node')
-        self.connect(addContainerNode, QtCore.SIGNAL('triggered()'), self.nodeArea.addSplittableContainerNode)
+        self.connect(addContainerNode, QtCore.SIGNAL('triggered()'), self.nodeArea.addContainerNode)
+
+        addSplittableContainerNode = QtGui.QAction('Add Splittable Container Node', self)
+        addSplittableContainerNode.setShortcut('Ctrl+Shift+S')
+        addSplittableContainerNode.setStatusTip('add a new Splittable Container Node')
+        self.connect(addSplittableContainerNode, QtCore.SIGNAL('triggered()'), self.nodeArea.addSplittableContainerNode)
 
         addInput = QtGui.QAction('Add Input', self)
         addInput.setShortcut('Ctrl+I')
@@ -99,6 +104,7 @@ class MainBox(QtGui.QMainWindow):
         addNodeMenu.addAction(addConstantNode)
         addNodeMenu.addAction(addNamedFunctionNode)
         addNodeMenu.addAction(addContainerNode)
+        addNodeMenu.addAction(addSplittableContainerNode)
 
         modifyNodeMenu = menubar.addMenu('&Modify Node')
         modifyNodeMenu.addAction(addInput)
