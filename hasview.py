@@ -53,7 +53,7 @@ class MainBox(QtGui.QMainWindow):
         addContainerNode = QtGui.QAction('Add Container Node', self)
         addContainerNode.setShortcut('Ctrl+Shift+R')
         addContainerNode.setStatusTip('add a new Container Node')
-        self.connect(addContainerNode, QtCore.SIGNAL('triggered()'), self.nodeArea.addContainerNode)
+        self.connect(addContainerNode, QtCore.SIGNAL('triggered()'), self.nodeArea.addSplittableContainerNode)
 
         addInput = QtGui.QAction('Add Input', self)
         addInput.setShortcut('Ctrl+I')
@@ -64,6 +64,12 @@ class MainBox(QtGui.QMainWindow):
         addOutput.setShortcut('Ctrl+O')
         addOutput.setStatusTip('Add an output to selected node')
         self.connect(addOutput, QtCore.SIGNAL('triggered()'), self.nodeArea.addOutput)
+
+        addSplit = QtGui.QAction('Add Split', self)
+        addSplit.setShortcut('Ctrl+P')
+        addSplit.setStatusTip('Add an output to selected node')
+        self.connect(addSplit, QtCore.SIGNAL('triggered()'), self.nodeArea.addSplit)
+
 
         serialize = QtGui.QAction('Serialize Current', self)
         serialize.setShortcut('Shift+S')
@@ -97,6 +103,7 @@ class MainBox(QtGui.QMainWindow):
         modifyNodeMenu = menubar.addMenu('&Modify Node')
         modifyNodeMenu.addAction(addInput)
         modifyNodeMenu.addAction(addOutput)
+        modifyNodeMenu.addAction(addSplit)
 
         runNodeMenu = menubar.addMenu('&Run Node')
         runNodeMenu.addAction(serialize)

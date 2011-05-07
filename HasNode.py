@@ -55,6 +55,9 @@ class NodeArea(QtGui.QGraphicsScene):
     def addContainerNode(self):
         self.addNodeByClass(ContainerNode)
 
+    def addSplittableContainerNode(self):
+        self.addNodeByClass(SplittableContainerNode)
+
     def addInput(self):
         """[bmw] adds an input box to the node with focus."""
         if self.focusItem():
@@ -68,6 +71,16 @@ class NodeArea(QtGui.QGraphicsScene):
             self.focusItem().addOutput()
         else:
             self.viewer.parent().statusBar().showMessage("Cannot add output: no selected node!")
+
+    def addSplit(self):
+        """to add splits to a splittable window"""
+        if self.focusItem():
+            if isinstance(self.focusItem(), SplittableContainerNode):
+                self.focusItem().addSplit()
+            else:
+                self.viewer.parent().statusBar().showMessage("Cannot add split: Node not splittable!")
+        else:
+            self.viewer.parent().statusBar().showMessage("Cannot add split: no selected node!")
 
     def serializeCurrent(self):
         """serializes currently selected node"""
@@ -294,6 +307,9 @@ class BaseNode(QtGui.QGraphicsItemGroup):
         else:
             super(BaseNode, self).mouseMoveEvent(event)
 
+    def rename(self, name):
+        self.name = name
+
 
 
 class ContainerNode(BaseNode):
@@ -402,7 +418,7 @@ class ContainerNode(BaseNode):
         if event.button() == QtCore.Qt.RightButton:
             newName, ok = QtGui.QInputDialog.getText(None, 'Set New Name For ' + str(self.name), 'Enter New Name')
             if ok:
-                self.name = newName
+                self.rename(newName)
         else:
             super(ContainerNode, self).mousePressEvent(event)
 
@@ -419,6 +435,83 @@ class ContainerNode(BaseNode):
         qp.setFont(curFont)
         qp.drawText(self.frameRect.pos() + QtCore.QPointF(25,15), QtCore.QString(self.name))
 
+#allows for multiple definitions of a single function, preserving order in serialization
+class SplittableContainerNode(ContainerNode):
+    def __init__(self, parent=None):
+        super(SplittableContainerNode, self).__init__(parent)
+        self.resizeFrame(300,300)
+        self.splitWindows = []
+        self.addSplit()
+
+    def addInput(self):
+        outerInput = HasNodeInput(len(self.inputTunnel), parent=self)
+        container = SplittableContainerIOVar(None, outerInput)
+        for split in self.splitWindows:
+            container.addInner(split.addInputFromSplitter(outerInput))
+        self.inputTunnel.append(container)
+        self.inputs.append(outerInput)
+
+    def addOutput(self):
+        outerOutput = HasNodeOutput(len(self.outputTunnel), parent=self)
+        container = SplittableContainerIOVar(None, outerOutput)
+        for split in self.splitWindows:
+            container.addInner(split.addOutputFromSplitter(outerOutput))
+        self.outputTunnel.append(container)
+        self.outputs.append(outerOutput)
+
+    def addSplit(self):
+        newSplit = SplitWindowContainerNode(self, self.name)
+        self.splitWindows.append(newSplit)
+        for inp in self.inputTunnel:
+            inp.addInner(newSplit.addInputFromSplitter(inp.outer))
+        for out in self.outputTunnel:
+            out.addInner(newSplit.addOutputFromSplitter(out.outer))
+
+    def serialize(self):
+        serializedListsWithPos = map(lambda split: (split.pos(), split.serialize()), self.splitWindows)
+        #better way to flatten?
+        serializedFlattenedWithPos = []
+        for posSplit in serializedListsWithPos:
+            for serialization in posSplit[1]:
+                serializedFlattenedWithPos.append((posSplit[0], serialization))
+        sortedWithPos = sorted(serializedFlattenedWithPos, key=lambda posSplit: posSplit[0].y())
+        serializedList = map(lambda posSplit: posSplit[1], sortedWithPos)
+        return serializedList
+
+    def rename(self, name):
+        super(SplittableContainerNode, self).rename(name)
+        map(lambda split: split.renameFromParent(name), self.splitWindows)
+
+#contained by SplittableContainerNode
+#io tunnels is controlled by parent
+class SplitWindowContainerNode(ContainerNode):
+    def __init__(self, parent=None, name=None):
+        super(SplitWindowContainerNode, self).__init__(parent)
+        self.resizeFrame(100,100)
+        if name is not None:
+            self.name = name
+
+    def addInputFromSplitter(self, outerInput):
+        innerInput = HasNodeInputInner(len(self.inputTunnel), parent=self)
+        self.inputTunnel.append(ContainerIOVar(innerInput, outerInput))
+        return innerInput
+
+    def addOutputFromSplitter(self, outerOutput):
+        innerOutput = HasNodeOutputInner(len(self.outputTunnel), parent=self)
+        self.outputTunnel.append(ContainerIOVar(innerOutput, outerOutput))
+        return innerOutput
+
+    def addInput(self):
+        self.parentItem().addInput()
+
+    def addOutput(self):
+        self.parentItem().addOutput()
+
+    def renameFromParent(self, name):
+        super(SplitWindowContainerNode, self).rename(name)
+
+    def rename(self, name):
+        self.parentItem().rename(name)
 
 #quick hacky to get print statement in there
 class MainNode(ContainerNode):
@@ -666,6 +759,17 @@ class ContainerIOVar:
     def __init__(self, inner, outer):
         self.inner = inner
         self.outer = outer
+
+class SplittableContainerIOVar:
+    def __init__(self, inners, outer):
+        if inners is None:
+            self.inners = []
+        else:
+            self.inners = inners
+        self.outer = outer
+
+    def addInner(self, iovar):
+        self.inners.append(iovar)
     
 
 class HasHighlighter(QtGui.QSyntaxHighlighter):
