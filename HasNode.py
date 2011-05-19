@@ -94,7 +94,7 @@ class NodeArea(QtGui.QGraphicsScene):
             serializedList = self.focusItem().serialize()
             outputText = ""
             if len(serializedList) > 0:
-                outputText = str(reduce(lambda x,y: str(x.toHaskell()) + "\n" + y.toHaskell(),serializedList))
+                outputText = str(reduce(lambda x,y: str(x) + "\n" + str(y),serializedList))
             else:
                 resolved = self.focusItem().resolve()
                 if len(resolved) > 0:
@@ -362,6 +362,7 @@ class ContainerNode(BaseNode):
         outVars = HasSyn.VarList()
         resolutions = {}
         body = HasSyn.SerializationBody()
+        serializations = []
 
         #find inputs
         inVars.extendList(map(lambda inTun: inTun.inner.name, self.inputTunnel))
@@ -384,10 +385,14 @@ class ContainerNode(BaseNode):
             for serialized in serializedList:
                 if serialized is not None:
                     binding = serialized.name + " " + serialized.args.toHaskellSpace()
-                    resolutions[binding] = HasSyn.Resolution(HasSyn.VarList([binding]), serialized.body.toHaskell(len(binding) + 3))
+                    serializations.append(HasSyn.Resolution(HasSyn.VarList([binding]), serialized.body.toHaskell(len(binding) + 3)))
         
 
-        body.addLets(resolutions.values())
+        lets = []
+        lets.extend(serializations)
+        lets.extend(resolutions.values())
+
+        body.addLets(lets)
         body.addIns(outVars)
 
         return [HasSyn.Serialization(self.name, inVars, body)]
@@ -476,6 +481,8 @@ class SplittableContainerNode(ContainerNode):
                 serializedFlattenedWithPos.append((posSplit[0], serialization))
         sortedWithPos = sorted(serializedFlattenedWithPos, key=lambda posSplit: posSplit[0].y())
         serializedList = map(lambda posSplit: posSplit[1], sortedWithPos)
+        #print sortedWithPos
+        #print map(lambda x: str(x), sortedWithPos)
         return serializedList
 
     def rename(self, name):
