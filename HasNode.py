@@ -141,6 +141,8 @@ class NodeArea(QtGui.QGraphicsScene):
             #sometimes segfaults and i dont know why
             HasNodeIOVar.current_line.scene().removeItem(HasNodeIOVar.current_line)
             HasNodeIOVar.current_line = None
+        elif event.key() == QtCore.Qt.Key_Escape and self.focusItem():
+            self.focusItem().remove()
         else:
             super(NodeArea, self).keyPressEvent(event)
 
@@ -205,6 +207,13 @@ class HasLine(QtGui.QGraphicsPathItem):
     def paint(self, qp, option, widget=None):
         self.updateLinks()
         super(HasLine, self).paint(qp, option, widget)
+
+    def remove(self):
+        if self.source is not None:
+            self.source.links.remove(self)
+        if self.sink is not None:
+            self.sink.links.remove(self)
+        self.scene().removeItem(self)
 
 
 class BaseNode(QtGui.QGraphicsItemGroup):
@@ -310,6 +319,14 @@ class BaseNode(QtGui.QGraphicsItemGroup):
     def rename(self, name):
         self.name = name
 
+    def remove(self):
+        #remove iovars (which remove links)
+        map(lambda iovar: iovar.remove(), self.inputs)
+        map(lambda iovar: iovar.remove(), self.outputs)
+        
+        #remove self
+        self.scene().removeItem(self)
+
 
 
 class ContainerNode(BaseNode):
@@ -363,6 +380,7 @@ class ContainerNode(BaseNode):
         resolutions = {}
         body = HasSyn.SerializationBody()
         serializations = []
+        lets = []
 
         #find inputs
         inVars.extendList(map(lambda inTun: inTun.inner.name, self.inputTunnel))
@@ -387,8 +405,6 @@ class ContainerNode(BaseNode):
                     binding = serialized.name + " " + serialized.args.toHaskellSpace()
                     serializations.append(HasSyn.Resolution(HasSyn.VarList([binding]), serialized.body.toHaskell(len(binding) + 3)))
         
-
-        lets = []
         lets.extend(serializations)
         lets.extend(resolutions.values())
 
@@ -439,6 +455,11 @@ class ContainerNode(BaseNode):
         curFont.setBold(True)
         qp.setFont(curFont)
         qp.drawText(self.frameRect.pos() + QtCore.QPointF(25,15), QtCore.QString(self.name))
+
+    def remove(self):
+        childrenNodes = filter(lambda x: isinstance(x,BaseNode), self.childItems())
+        map(lambda child: child.remove(), childrenNodes)
+        super(ContainerNode, self).remove()
 
 #allows for multiple definitions of a single function, preserving order in serialization
 class SplittableContainerNode(ContainerNode):
@@ -690,6 +711,14 @@ class HasNodeIOVar(QtGui.QGraphicsRectItem):
         else:
             super(HasNodeIOVar, self).mousePressEvent(event)
 
+    def remove(self):
+        #remove links
+        map(lambda lk: lk.remove(), self.links)
+
+        self.scene().removeItem(self)
+        
+
+
 class HasNodeInput(HasNodeIOVar):
     """Input box for nodes -- will be placed on the left of a node"""
     def __init__(self, num_prev_inputs, parent=None):
@@ -713,7 +742,6 @@ class HasNodeInput(HasNodeIOVar):
             HasNodeIOVar.current_line = HasLine()
             HasNodeIOVar.current_line.setSink(self)
             self.scene().addItem(HasNodeIOVar.current_line)
-
 
 class HasNodeOutput(HasNodeIOVar):
     """Output box for nodes."""
