@@ -36,7 +36,7 @@ class VarList(HaskellSynthesizer):
             outputString += reduce(lambda x,y: x + " " + y, self.varList, "")
         elif len(self.varList) == 1:
             outputString += self.varList[0]
-        return outputString
+        return str(outputString)
 
     def __str__(self, curSpaces=0):
         if len(self.varList) > 1:
@@ -58,7 +58,7 @@ class Resolution(HaskellSynthesizer):
         spacedBinding = spacer.sub("\n"+ " "*curSpaces, str(self.binding))
 
 
-        return (" " * curSpaces) + self.varList.toHaskellParen() + " = " + spacedBinding
+        return str((" " * curSpaces) + self.varList.toHaskellParen() + " = " + spacedBinding)
 
 class SerializationBody(HaskellSynthesizer):
     def __init__(self):
@@ -135,7 +135,7 @@ class SerializationBody(HaskellSynthesizer):
                         outputStr += resolution.toHaskell(whereSpaces)
                     outputStr += "\n"
                 outputStr += "\n" + (" "*curSpaces)
-        return outputStr
+        return str(outputStr)
 
 class Serialization(HaskellSynthesizer):
     def __init__(self, name="", args=VarList(), body=SerializationBody()):
@@ -156,4 +156,4 @@ class Serialization(HaskellSynthesizer):
         outputStr += "= "
         curSpaces = len(outputStr)
         outputStr += self.body.toHaskell(curSpaces,False)
-        return outputStr
+        return str(outputStr)

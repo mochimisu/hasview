@@ -94,15 +94,15 @@ class NodeArea(QtGui.QGraphicsScene):
             serializedList = self.focusItem().serialize()
             outputText = ""
             if len(serializedList) > 0:
-                outputText = str(reduce(lambda x,y: x.toHaskell() + "\n" + y.toHaskell(),serializedList))
+                outputText = str(reduce(lambda x,y: str(x.toHaskell()) + "\n" + y.toHaskell(),serializedList))
             else:
                 resolved = self.focusItem().resolve()
                 if len(resolved) > 0:
                     for resolution in resolved:
                         outputText += resolution.toHaskell()  
-            msgBox.setText(outputText)
+            msgBox.setText((outputText))
             #quick hackery to use setDetails for a copy-able compiled thing
-            msgBox.setDetailedText(outputText)
+            msgBox.setDetailedText(str(outputText))
             msgBox.exec_()
         else:
             self.viewer.parent().statusBar().showMessage("Cannot serialize: no selected node!")
